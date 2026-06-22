@@ -1,4 +1,4 @@
-create extension if not exists "pgcrypto";
+﻿create extension if not exists "pgcrypto";
 
 create table if not exists public.usuarios (
   id uuid primary key default gen_random_uuid(),
@@ -177,6 +177,6 @@ on conflict (tipo_vinculo, documento) do nothing;
 insert into public.vagas (tipo_vinculo, quantidade_total, quantidade_ocupada) values
 ('CLT', 3, 3),
 ('Estagiário', 5, 5),
-('PJ', 0, 0),
-('8 horas', 0, 0)
+('PJ', 0, 0)
 on conflict (tipo_vinculo) do nothing;
+
