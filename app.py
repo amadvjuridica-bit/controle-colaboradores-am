@@ -82,117 +82,73 @@ def css() -> None:
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root {
-            --am-blue: #24294f;
-            --am-blue-2: #34507e;
-            --am-ink: #151936;
-            --am-gray: #f4f6f8;
-            --am-border: #d8dde6;
+            --am-navy: #17213f;
+            --am-blue: #22315f;
+            --am-blue-soft: #eef3fb;
+            --am-gold: #b49358;
+            --am-ink: #161a25;
+            --am-muted: #657085;
+            --am-line: #e6e9ef;
+            --am-surface: #ffffff;
+            --am-bg: #f8f9fb;
             --am-red: #b42318;
-            --am-yellow: #b7791f;
+            --am-yellow: #9a6700;
             --am-green: #067647;
         }
-        .stApp { background: #f7f8fb; color: var(--am-ink); }
-        .block-container { padding-top: 1.1rem; padding-bottom: 3.25rem; max-width: 1280px; }
-        [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #ffffff 0%, #f6f8fc 100%);
-            border-right: 1px solid #dfe4ee;
-        }
-        [data-testid="stSidebar"] img { max-width: 210px; margin: .25rem auto .75rem; display: block; }
-        h1, h2, h3 { color: var(--am-blue); letter-spacing: 0; font-weight: 720; }
-        h1 { font-size: 1.72rem; }
-        h2, h3 { margin-top: 1.1rem; }
-        label, [data-testid="stWidgetLabel"] p { color: #29324f; font-weight: 650; }
-        input, textarea, [data-baseweb="select"] > div {
-            border-radius: 8px !important;
-            border-color: #cdd5e3 !important;
-            background: #ffffff !important;
-        }
-        input:focus, textarea:focus {
-            border-color: var(--am-blue-2) !important;
-            box-shadow: 0 0 0 2px rgba(52, 80, 126, .16) !important;
-        }
-        .stButton > button, button[kind="primary"] {
-            border-radius: 8px !important;
-            font-weight: 700 !important;
-            border: 1px solid var(--am-blue) !important;
-        }
-        .stButton > button[kind="primary"], button[kind="primary"] {
-            background: var(--am-blue) !important;
-            color: #ffffff !important;
-        }
-        .stButton > button:hover {
-            border-color: var(--am-blue-2) !important;
-            box-shadow: 0 2px 8px rgba(36, 41, 79, .16);
-        }
-        [data-testid="stDataFrame"] {
-            border: 1px solid var(--am-border);
-            border-radius: 8px;
-            overflow: hidden;
-            background: #ffffff;
-        }
-        div[data-testid="stMetric"] {
-            background: white;
-            border: 1px solid var(--am-border);
-            border-radius: 8px;
-            padding: 14px 16px;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
-        }
-        div[data-testid="stMetric"] label { color: #536078; }
-        div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: var(--am-blue); }
+        html, body, .stApp, .stApp * { font-family: "Inter", "Segoe UI", Arial, sans-serif; }
+        .stApp { background: linear-gradient(180deg, #ffffff 0%, var(--am-bg) 280px), var(--am-bg); color: var(--am-ink); }
+        .block-container { padding-top: 1.25rem; padding-bottom: 3rem; max-width: 1180px; }
+        #MainMenu, footer, header { visibility: hidden; }
+        [data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid var(--am-line); }
+        [data-testid="stSidebar"] img { max-width: 188px; margin: .35rem auto 1rem; display: block; }
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: var(--am-muted); text-align: center; letter-spacing: .02em; }
+        [data-testid="stSidebar"] [role="radiogroup"] { gap: .28rem; }
+        [data-testid="stSidebar"] label[data-baseweb="radio"] { border-radius: 8px; padding: .55rem .75rem; margin: .1rem 0; border: 1px solid transparent; }
+        [data-testid="stSidebar"] label[data-baseweb="radio"]:has(input:checked) { background: var(--am-blue-soft); border-color: #d9e2f2; color: var(--am-navy); font-weight: 700; }
+        h1, h2, h3 { color: var(--am-navy); letter-spacing: 0; font-weight: 760; }
+        h1 { font-size: 1.65rem; margin-bottom: .55rem; }
+        h2 { font-size: 1.16rem; margin-top: 1.35rem; }
+        h3 { font-size: 1rem; margin-top: 1.1rem; }
+        p, li { color: #394150; }
+        label, [data-testid="stWidgetLabel"] p { color: #273049; font-weight: 650; font-size: .9rem; }
+        input, textarea, [data-baseweb="select"] > div { border-radius: 8px !important; border-color: #d9dee8 !important; background: #ffffff !important; }
+        input:focus, textarea:focus { border-color: var(--am-gold) !important; box-shadow: 0 0 0 3px rgba(180, 147, 88, .16) !important; }
+        .stButton > button, button[kind="primary"] { border-radius: 8px !important; font-weight: 700 !important; letter-spacing: 0 !important; border: 1px solid var(--am-navy) !important; min-height: 2.55rem; }
+        .stButton > button[kind="primary"], button[kind="primary"] { background: var(--am-navy) !important; color: #ffffff !important; }
+        .stButton > button:hover { border-color: var(--am-gold) !important; box-shadow: 0 8px 20px rgba(23, 33, 63, .10); }
+        [data-testid="stDataFrame"] { border: 1px solid var(--am-line); border-radius: 8px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+        div[data-testid="stMetric"] { background: var(--am-surface); border: 1px solid var(--am-line); border-radius: 8px; padding: 13px 15px; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+        div[data-testid="stMetric"] label { color: var(--am-muted); font-size: .78rem; }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: var(--am-navy); font-size: 1.55rem; font-weight: 780; }
         .status-ok { color: var(--am-green); font-weight: 700; }
         .status-warn { color: var(--am-yellow); font-weight: 700; }
         .status-bad { color: var(--am-red); font-weight: 700; }
-        .am-hero {
-            border: 1px solid #dbe2ee;
-            background: linear-gradient(135deg, #ffffff 0%, #eef2f8 100%);
-            border-radius: 8px;
-            padding: 16px 18px;
-            margin-bottom: 18px;
+        .am-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.25rem; border-bottom: 1px solid var(--am-line); padding: .25rem 0 1rem; margin-bottom: 1.15rem; }
+        .am-page-kicker { color: var(--am-gold); font-size: .72rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; margin-bottom: .38rem; }
+        .am-page-title { color: var(--am-navy); font-size: 1.72rem; line-height: 1.15; font-weight: 800; }
+        .am-page-copy { color: var(--am-muted); font-size: .92rem; max-width: 620px; margin-top: .35rem; }
+        .am-page-badge { border: 1px solid #e4d7bd; color: #70572e; background: #fffaf1; border-radius: 999px; padding: .42rem .7rem; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+        .am-footer { margin-top: 28px; padding: 14px 0 0; border-top: 1px solid var(--am-line); color: var(--am-muted); font-size: .82rem; }
+        .notice { border: 1px solid #eadfc9; background: #fffaf1; color: #614819; padding: 12px 14px; border-radius: 8px; font-weight: 650; }
+        div[data-testid="stTabs"] { margin-top: .35rem; }
+        div[data-testid="stTabs"] button { font-weight: 720; color: var(--am-muted); border-radius: 0; }
+        div[data-testid="stTabs"] button[aria-selected="true"] { color: var(--am-navy); }
+        div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background-color: var(--am-gold); }
+        .am-section { border-top: 1px solid var(--am-line); margin-top: 1.15rem; padding-top: 1rem; }
+        .email-ok { border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 8px; padding: 12px 14px; font-weight: 650; }
+        .email-warn { border: 1px solid #fed7aa; background: #fff7ed; color: #7c2d12; border-radius: 8px; padding: 12px 14px; font-weight: 650; }
+        @media (max-width: 760px) {
+            .block-container { padding-left: 1rem; padding-right: 1rem; }
+            .am-page-head { display: block; }
+            .am-page-badge { display: inline-block; margin-top: .85rem; }
+            .am-page-title { font-size: 1.42rem; }
         }
-        .am-hero strong { color: var(--am-blue); font-size: 1.04rem; }
-        .am-hero span { display: block; color: #556070; margin-top: 3px; font-size: .92rem; }
-        .am-footer {
-            margin-top: 28px;
-            padding: 14px 0 0;
-            border-top: 1px solid #dbe2ee;
-            color: #58657a;
-            font-size: .82rem;
-        }
-        .notice {
-            border: 1px solid #f5c2c7;
-            background: #fff5f5;
-            color: #7a271a;
-            padding: 12px 14px;
-            border-radius: 8px;
-            font-weight: 650;
-        }
-        div[data-testid="stTabs"] button { font-weight: 700; }
-        .am-section {
-            border-top: 1px solid #dbe2ee;
-            margin-top: 18px;
-            padding-top: 14px;
-        }
-        .email-ok {
-            border: 1px solid #bbf7d0;
-            background: #f0fdf4;
-            color: #14532d;
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-weight: 650;
-        }
-        .email-warn {
-            border: 1px solid #fed7aa;
-            background: #fff7ed;
-            color: #7c2d12;
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-weight: 650;
-        }        </style>
+        </style>
         """,
         unsafe_allow_html=True,
     )
-
 
 @st.cache_resource(show_spinner=False)
 def supabase_client() -> Client | None:
@@ -359,14 +315,27 @@ def save_document_checklist(colaborador: dict[str, Any], docs_state: list[dict[s
 def document_status_label(colaborador: dict[str, Any], docs: list[dict[str, Any]]) -> str:
     _, pendings = status_documental(colaborador, docs)
     return "Completa" if not pendings else f"{len(pendings)} pendência(s)"
+def page_header(title: str, subtitle: str, badge: str = "Sistema interno") -> None:
+    st.markdown(
+        f"""
+        <div class="am-page-head">
+            <div>
+                <div class="am-page-kicker">{BRAND_NAME}</div>
+                <div class="am-page-title">{title}</div>
+                <div class="am-page-copy">{subtitle}</div>
+            </div>
+            <div class="am-page-badge">{badge}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def institutional_header(section: str | None = None) -> None:
     subtitle = CONFIDENTIAL_NOTICE
     if section:
         subtitle = f"{section} | {subtitle}"
-    st.markdown(
-        f'<div class="am-hero"><strong>{BRAND_NAME}</strong><span>{subtitle}</span></div>',
-        unsafe_allow_html=True,
-    )
+    page_header(BRAND_NAME, subtitle, "Confidencial")
 
 
 def institutional_footer() -> None:
@@ -811,16 +780,11 @@ def render_novo_cadastro() -> None:
 
 
 def page_colaboradores() -> None:
-    st.title("Colaboradores")
+    page_header("Colaboradores", "Cadastro, consulta, edição e documentos em uma experiência única e limpa.", "Equipe")
     colaboradores = get_colaboradores()
     docs = fetch_table("documentos_colaborador", "created_at", True)
     ativos = [c for c in colaboradores if c.get("status") == "ativo"]
     pendencias_doc = sum(1 for c in ativos if status_documental(c, docs)[1])
-
-    st.markdown(
-        '<div class="am-hero"><strong>Controle de equipe</strong><span>Cadastro, consulta e documentação em uma única tela.</span></div>',
-        unsafe_allow_html=True,
-    )
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Ativos", len(ativos))
     m2.metric("CLT", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT"))
@@ -954,7 +918,7 @@ def page_documentacao() -> None:
 
 
 def page_rescisoes() -> None:
-    st.title(PAGE_RESCISOES)
+    page_header(PAGE_RESCISOES, "Registro e acompanhamento de saídas com prazos e comprovantes concentrados.", "Operação")
     colaboradores = [c for c in get_colaboradores() if c.get("status") == "ativo"]
     selected = select_colaborador("Colaborador ativo", colaboradores)
     if not selected:
@@ -1174,7 +1138,7 @@ def dataframe_to_pdf(df: pd.DataFrame) -> bytes:
 
 
 def page_relatorios() -> None:
-    st.title(PAGE_RELATORIOS)
+    page_header(PAGE_RELATORIOS, "Consultas e exportações essenciais para acompanhamento interno.", "Dados")
     tipo = st.selectbox(
         "Relatório",
         [
@@ -1359,6 +1323,11 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
 
 
 
