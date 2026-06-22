@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
+import re
 import smtplib
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
@@ -21,6 +22,29 @@ SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Assis & Mollerke")
 SOCIOS = ["am@amcob.com.br", "amadvjuridica@gmail.com"]
 SUPERVISOR = "comercial@amcob.com.br"
 
+CARGA_HORARIA_RE = re.compile(r"^Carga horária CLT:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
+
+
+def normalize_tipo_vinculo(value):
+    return "CLT" if value == "8 horas" else value
+
+
+def carga_horaria_from_colaborador(colaborador):
+    if colaborador.get("tipo_vinculo") == "8 horas":
+        return "8 horas"
+    explicit = colaborador.get("carga_horaria")
+    if explicit:
+        return str(explicit)
+    match = CARGA_HORARIA_RE.search(colaborador.get("observacoes") or "")
+    return match.group(1).strip() if match else ""
+
+
+def colaborador_tipo_label(colaborador):
+    tipo = normalize_tipo_vinculo(colaborador.get("tipo_vinculo"))
+    carga = carga_horaria_from_colaborador(colaborador)
+    if tipo == "CLT" and carga:
+        return f"CLT ({carga})"
+    return tipo or ""
 
 def send_email(subject: str, body: str, to: list[str], cc: list[str] | None = None) -> bool:
     cc = cc or []
@@ -97,7 +121,7 @@ def birthday_alerts(sb, colaboradores):
 
 Dados:
 Nome: {c['nome_completo']}
-Tipo de vínculo: {c.get('tipo_vinculo', '')}
+Tipo de vínculo: {colaborador_tipo_label(c)}
 Cargo: {c.get('cargo', '')}
 Data de nascimento: {birth:%d/%m/%Y}
 Idade: {age(birth, target)}
@@ -126,16 +150,17 @@ def weekly_report(sb, colaboradores):
         "",
         "Resumo:",
         f"Total de colaboradores ativos: {len(ativos)}",
-        f"Total CLT: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'CLT')}",
-        f"Total estagiários: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'Estagiário')}",
-        f"Total PJ: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'PJ')}",
-        f"Total 8 horas: {sum(1 for c in ativos if c.get('tipo_vinculo') == '8 horas')}",
+        f"Total CLT: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'CLT')}",
+        f"Total CLT 6h: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'CLT' and carga_horaria_from_colaborador(c) == '6 horas')}",
+        f"Total CLT 8h: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'CLT' and carga_horaria_from_colaborador(c) == '8 horas')}",
+        f"Total estagiários: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'Estagiário')}",
+        f"Total PJ: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'PJ')}",
         f"Total inativos/rescindidos: {sum(1 for c in colaboradores if c.get('status') != 'ativo')}",
         "",
         "Tabela:",
     ]
     for c in colaboradores:
-        lines.append(f"{c.get('nome_completo')} | {c.get('tipo_vinculo')} | {c.get('cargo')} | {c.get('status')}")
+        lines.append(f"{c.get('nome_completo')} | {colaborador_tipo_label(c)} | {c.get('cargo')} | {c.get('status')}")
     lines.extend(["", "Este relatório é enviado automaticamente pelo sistema de controle de funcionários e estagiários."])
     body = "\n".join(lines)
     sent = send_email(subject, body, SOCIOS + [SUPERVISOR])
@@ -206,3 +231,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
