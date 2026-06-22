@@ -19,6 +19,10 @@ from supabase import Client, create_client
 
 APP_NAME = "Controle de Colaboradores | Assis & Mollerke"
 LOGO_PATH = "assets/logo.png"
+BRAND_NAME = "Assis & Mollerke"
+CONFIDENTIAL_NOTICE = (
+    "Sistema interno e confidencial. Uso restrito aos usuários autorizados da Assis & Mollerke."
+)
 CRITICAL_ACTIONS = {
     "cadastrar_colaborador",
     "alterar_dados_pessoais",
@@ -31,22 +35,35 @@ CRITICAL_ACTIONS = {
     "alterar_status",
 }
 
+TIPO_ESTAGIARIO = "Estagi\u00e1rio"
+DOC_CONTRATO_ESTAGIO = "Contrato de est\u00e1gio"
+PAGE_DASHBOARD = "Dashboard"
+PAGE_COLABORADORES = "Colaboradores"
+PAGE_NOVO_CADASTRO = "Novo cadastro"
+PAGE_DOCUMENTACAO = "Documenta\u00e7\u00e3o"
+PAGE_RESCISOES = "Rescis\u00f5es"
+PAGE_VAGAS = "Vagas"
+PAGE_ANIVERSARIOS = "Anivers\u00e1rios"
+PAGE_RELATORIOS = "Relat\u00f3rios"
+PAGE_CONFIGURACOES = "Configura\u00e7\u00f5es"
+PAGE_AUDITORIA = "Auditoria"
+
 DOCUMENTOS_ESTAGIARIO = [
-    "Contrato de estÃ¡gio",
+    DOC_CONTRATO_ESTAGIO,
     "RG",
     "CPF",
-    "Comprovante de residÃªncia",
-    "DeclaraÃ§Ã£o de matrÃ­cula",
+    "Comprovante de resid\u00eancia",
+    "Declara\u00e7\u00e3o de matr\u00edcula",
 ]
 
 DOCUMENTOS_CLT = [
     "RG",
     "CPF",
-    "Comprovante de endereÃ§o",
+    "Comprovante de endere\u00e7o",
     "Exame admissional",
     "PIS/PASEP",
-    "CertidÃ£o de nascimento/casamento",
-    "TÃ­tulo de eleitor",
+    "Certid\u00e3o de nascimento/casamento",
+    "T\u00edtulo de eleitor",
     "Certificado de reservista",
     "Comprovante de escolaridade",
 ]
@@ -65,15 +82,52 @@ def css() -> None:
         :root {
             --am-blue: #24294f;
             --am-blue-2: #34507e;
+            --am-ink: #151936;
             --am-gray: #f4f6f8;
             --am-border: #d8dde6;
             --am-red: #b42318;
             --am-yellow: #b7791f;
             --am-green: #067647;
         }
-        .block-container { padding-top: 1.2rem; padding-bottom: 2rem; }
-        [data-testid="stSidebar"] { background: #f7f8fa; border-right: 1px solid #e3e7ee; }
-        h1, h2, h3 { color: var(--am-blue); letter-spacing: 0; }
+        .stApp { background: #f5f7fb; color: var(--am-ink); }
+        .block-container { padding-top: 1.1rem; padding-bottom: 3.25rem; max-width: 1280px; }
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #ffffff 0%, #f6f8fc 100%);
+            border-right: 1px solid #dfe4ee;
+        }
+        [data-testid="stSidebar"] img { max-width: 210px; margin: .25rem auto .75rem; display: block; }
+        h1, h2, h3 { color: var(--am-blue); letter-spacing: 0; font-weight: 720; }
+        h1 { font-size: 1.85rem; }
+        h2, h3 { margin-top: 1.1rem; }
+        label, [data-testid="stWidgetLabel"] p { color: #29324f; font-weight: 650; }
+        input, textarea, [data-baseweb="select"] > div {
+            border-radius: 8px !important;
+            border-color: #cdd5e3 !important;
+            background: #ffffff !important;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--am-blue-2) !important;
+            box-shadow: 0 0 0 2px rgba(52, 80, 126, .16) !important;
+        }
+        .stButton > button, button[kind="primary"] {
+            border-radius: 8px !important;
+            font-weight: 700 !important;
+            border: 1px solid var(--am-blue) !important;
+        }
+        .stButton > button[kind="primary"], button[kind="primary"] {
+            background: var(--am-blue) !important;
+            color: #ffffff !important;
+        }
+        .stButton > button:hover {
+            border-color: var(--am-blue-2) !important;
+            box-shadow: 0 2px 8px rgba(36, 41, 79, .16);
+        }
+        [data-testid="stDataFrame"] {
+            border: 1px solid var(--am-border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #ffffff;
+        }
         div[data-testid="stMetric"] {
             background: white;
             border: 1px solid var(--am-border);
@@ -81,9 +135,27 @@ def css() -> None:
             padding: 14px 16px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
         }
+        div[data-testid="stMetric"] label { color: #536078; }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: var(--am-blue); }
         .status-ok { color: var(--am-green); font-weight: 700; }
         .status-warn { color: var(--am-yellow); font-weight: 700; }
         .status-bad { color: var(--am-red); font-weight: 700; }
+        .am-hero {
+            border: 1px solid #dbe2ee;
+            background: linear-gradient(135deg, #ffffff 0%, #eef2f8 100%);
+            border-radius: 8px;
+            padding: 16px 18px;
+            margin-bottom: 18px;
+        }
+        .am-hero strong { color: var(--am-blue); font-size: 1.04rem; }
+        .am-hero span { display: block; color: #556070; margin-top: 3px; font-size: .92rem; }
+        .am-footer {
+            margin-top: 28px;
+            padding: 14px 0 0;
+            border-top: 1px solid #dbe2ee;
+            color: #58657a;
+            font-size: .82rem;
+        }
         .notice {
             border: 1px solid #f5c2c7;
             background: #fff5f5;
@@ -135,6 +207,33 @@ def br_date(value: Any) -> str:
     return parsed.strftime("%d/%m/%Y") if parsed else ""
 
 
+def format_full_name(value: str) -> str:
+    particles = {"da", "de", "do", "das", "dos", "e"}
+    words = []
+    for raw in value.strip().split():
+        lower = raw.lower()
+        words.append(lower if lower in particles and words else lower.capitalize())
+    return " ".join(words)
+
+
+def institutional_header(section: str | None = None) -> None:
+    subtitle = CONFIDENTIAL_NOTICE
+    if section:
+        subtitle = f"{section} | {subtitle}"
+    st.markdown(
+        f'<div class="am-hero"><strong>{BRAND_NAME}</strong><span>{subtitle}</span></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def institutional_footer() -> None:
+    st.markdown(
+        f'<div class="am-footer">Todos os direitos reservados a {BRAND_NAME}. '
+        "As informações exibidas neste sistema são confidenciais e destinadas exclusivamente ao controle interno.</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def age(birth: Any, ref: date | None = None) -> int | None:
     birth_date = parse_date(birth)
     if not birth_date:
@@ -153,7 +252,7 @@ def company_time(start: Any, ref: date | None = None) -> str:
     if delta.years:
         parts.append(f"{delta.years} ano{'s' if delta.years != 1 else ''}")
     if delta.months:
-        parts.append(f"{delta.months} mÃªs{'es' if delta.months != 1 else ''}")
+        parts.append(f"{delta.months} mês{'es' if delta.months != 1 else ''}")
     if not parts:
         parts.append(f"{delta.days} dia{'s' if delta.days != 1 else ''}")
     return " e ".join(parts)
@@ -207,6 +306,7 @@ def require_login() -> None:
     with col2:
         st.title("Controle de Colaboradores")
         st.caption("Assis & Mollerke")
+        st.info(CONFIDENTIAL_NOTICE)
         password = st.text_input("Senha principal do app", type="password")
         expected = st.secrets.get("APP_PASSWORD", "")
         if st.button("Entrar", type="primary"):
@@ -214,24 +314,25 @@ def require_login() -> None:
                 st.session_state.logged = True
                 st.rerun()
             else:
-                st.error("Senha invÃ¡lida ou APP_PASSWORD nÃ£o configurado.")
+                st.error("Senha inválida ou APP_PASSWORD não configurado.")
+    institutional_footer()
     st.stop()
 
 
 def pin_form(action: str, key: str) -> dict[str, Any] | None:
     usuarios = get_usuarios()
     if not usuarios:
-        st.warning("Cadastre usuÃ¡rios e hashes de PIN na tabela usuarios antes de executar aÃ§Ãµes crÃ­ticas.")
+        st.warning("Cadastre usuários e hashes de PIN na tabela usuarios antes de executar ações críticas.")
         return None
-    st.markdown("**ConfirmaÃ§Ã£o por PIN individual**")
+    st.markdown("**Confirmação por PIN individual**")
     user_map = {f"{u['nome']} - {u.get('perfil', '')}": u for u in usuarios if u.get("ativo", True)}
-    user_label = st.selectbox("UsuÃ¡rio responsÃ¡vel", list(user_map.keys()), key=f"{key}_pin_user")
+    user_label = st.selectbox("Usuário responsável", list(user_map.keys()), key=f"{key}_pin_user")
     pin = st.text_input("PIN", type="password", key=f"{key}_pin")
     if not pin:
         return None
     user = user_map[user_label]
     if user.get("pin_hash") != sha256_pin(pin):
-        st.error("PIN invÃ¡lido.")
+        st.error("PIN inválido.")
         return None
     return {"id": user["id"], "nome": user["nome"], "perfil": user.get("perfil"), "action": action}
 
@@ -259,7 +360,7 @@ def send_email(subject: str, body: str, to: list[str], cc: list[str] | None = No
     cc = cc or []
 
     if not user or not password or not sender:
-        st.warning("SMTP nÃ£o configurado. O e-mail foi registrado como pendente.")
+        st.warning("SMTP não configurado. O e-mail foi registrado como pendente.")
         return False
 
     msg = EmailMessage()
@@ -312,7 +413,7 @@ def pending_fields(payload: dict[str, Any], required: list[str]) -> list[str]:
 
 
 def status_documental(colaborador: dict[str, Any], docs: list[dict[str, Any]]) -> tuple[str, list[str]]:
-    required = DOCUMENTOS_ESTAGIARIO if colaborador.get("tipo_vinculo") == "EstagiÃ¡rio" else DOCUMENTOS_CLT
+    required = DOCUMENTOS_ESTAGIARIO if colaborador.get("tipo_vinculo") == TIPO_ESTAGIARIO else DOCUMENTOS_CLT
     by_name = {d.get("documento"): d for d in docs if d.get("colaborador_id") == colaborador.get("id")}
     pendings = []
     for item in required:
@@ -335,7 +436,7 @@ def status_documental(colaborador: dict[str, Any], docs: list[dict[str, Any]]) -
             "data_admissao",
         ],
     )
-    pendings.extend([f"Campo obrigatÃ³rio: {f}" for f in fields])
+    pendings.extend([f"Campo obrigatório: {f}" for f in fields])
     return ("completo" if not pendings else "parcial", pendings)
 
 
@@ -345,18 +446,18 @@ def novo_colaborador_email(colaborador: dict[str, Any], usuario: dict[str, Any],
     body = f"""Novo colaborador cadastrado no sistema.
 
 Nome completo: {colaborador.get('nome_completo', '')}
-Tipo de vÃ­nculo: {colaborador.get('tipo_vinculo', '')}
+Tipo de vínculo: {colaborador.get('tipo_vinculo', '')}
 Cargo: {colaborador.get('cargo', '')}
-Data de admissÃ£o: {br_date(colaborador.get('data_admissao'))}
+Data de admissão: {br_date(colaborador.get('data_admissao'))}
 E-mail: {colaborador.get('email', '')}
 Telefone: {colaborador.get('telefone', '')}
 CPF: {colaborador.get('cpf', '')}
 Cidade/UF de nascimento: {colaborador.get('cidade_nascimento', '')}/{colaborador.get('estado_nascimento', '')}
 Status documental: {'completo' if not pendings else 'parcial'}
 Documentos pendentes: {', '.join(pendings) if pendings else 'Nenhum'}
-Dados bancÃ¡rios informados: {'sim' if colaborador.get('banco') and colaborador.get('conta') else 'nÃ£o'}
-Pix informado: {'sim' if colaborador.get('pix') else 'nÃ£o'}
-UsuÃ¡rio/PIN responsÃ¡vel pelo cadastro: {usuario.get('nome')}
+Dados bancários informados: {'sim' if colaborador.get('banco') and colaborador.get('conta') else 'não'}
+Pix informado: {'sim' if colaborador.get('pix') else 'não'}
+Usuário/PIN responsável pelo cadastro: {usuario.get('nome')}
 Data e hora do cadastro: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 """
     email_and_log("novo_colaborador", subject, body, SOCIOS_EMAILS)
@@ -379,15 +480,15 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
         estado_nascimento = st.text_input("Estado de nascimento", value=current.get("estado_nascimento", ""), key=f"{prefix}_uf_nasc")
     with c2:
         telefone = st.text_input("Telefone*", value=current.get("telefone", ""), key=f"{prefix}_telefone")
-        email = st.text_input("E-mail obrigatÃ³rio*", value=current.get("email", ""), key=f"{prefix}_email")
-        endereco = st.text_area("EndereÃ§o completo*", value=current.get("endereco", ""), key=f"{prefix}_endereco")
+        email = st.text_input("E-mail obrigatório*", value=current.get("email", ""), key=f"{prefix}_email")
+        endereco = st.text_area("Endereço completo*", value=current.get("endereco", ""), key=f"{prefix}_endereco")
         cep = st.text_input("CEP*", value=current.get("cep", ""), key=f"{prefix}_cep")
-        cargo = st.text_input("Cargo/funÃ§Ã£o*", value=current.get("cargo", ""), key=f"{prefix}_cargo")
+        cargo = st.text_input("Cargo/função*", value=current.get("cargo", ""), key=f"{prefix}_cargo")
         tipo_vinculo = st.selectbox(
-            "Tipo de vÃ­nculo*",
-            ["CLT", "EstagiÃ¡rio", "PJ", "8 horas", "Outro"],
-            index=["CLT", "EstagiÃ¡rio", "PJ", "8 horas", "Outro"].index(current.get("tipo_vinculo", "CLT"))
-            if current.get("tipo_vinculo", "CLT") in ["CLT", "EstagiÃ¡rio", "PJ", "8 horas", "Outro"]
+            "Tipo de vínculo*",
+            ["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas", "Outro"],
+            index=["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas", "Outro"].index(current.get("tipo_vinculo", "CLT"))
+            if current.get("tipo_vinculo", "CLT") in ["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas", "Outro"]
             else 0,
             key=f"{prefix}_tipo",
         )
@@ -401,23 +502,23 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
             key=f"{prefix}_status",
         )
         data_admissao = st.date_input(
-            "Data de admissÃ£o/inÃ­cio*",
+            "Data de admissão/início*",
             value=parse_date(current.get("data_admissao")),
             format="DD/MM/YYYY",
             key=f"{prefix}_admissao",
         )
-        observacoes = st.text_area("ObservaÃ§Ãµes", value=current.get("observacoes", ""), key=f"{prefix}_obs")
+        observacoes = st.text_area("Observações", value=current.get("observacoes", ""), key=f"{prefix}_obs")
 
-    st.subheader("Dados bancÃ¡rios e Pix")
+    st.subheader("Dados bancários e Pix")
     st.markdown(
-        '<div class="notice">ATENÃ‡ÃƒO: confira cuidadosamente os dados bancÃ¡rios e a chave Pix antes de salvar. '
-        "InformaÃ§Ãµes incorretas podem gerar pagamento indevido.</div>",
+        '<div class="notice">ATENÇÃO: confira cuidadosamente os dados bancários e a chave Pix antes de salvar. '
+        "Informações incorretas podem gerar pagamento indevido.</div>",
         unsafe_allow_html=True,
     )
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         banco = st.text_input("Banco", value=current.get("banco", ""), key=f"{prefix}_banco")
-        agencia = st.text_input("AgÃªncia", value=current.get("agencia", ""), key=f"{prefix}_agencia")
+        agencia = st.text_input("Agência", value=current.get("agencia", ""), key=f"{prefix}_agencia")
     with b2:
         conta = st.text_input("Conta", value=current.get("conta", ""), key=f"{prefix}_conta")
         tipo_conta = st.text_input("Tipo de conta", value=current.get("tipo_conta", ""), key=f"{prefix}_tipo_conta")
@@ -429,12 +530,12 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
         cpf_titular = st.text_input("CPF/CNPJ do titular", value=current.get("cpf_titular", ""), key=f"{prefix}_cpf_titular")
 
     bank_confirmed = st.checkbox(
-        "Confirmo que conferi os dados bancÃ¡rios e o Pix informado.",
+        "Confirmo que conferi os dados bancários e o Pix informado.",
         key=f"{prefix}_bank_confirmed",
     )
 
     return {
-        "nome_completo": nome.strip(),
+        "nome_completo": format_full_name(nome),
         "cpf": cpf.strip(),
         "rg": rg.strip(),
         "data_nascimento": data_nascimento.isoformat() if data_nascimento else None,
@@ -478,23 +579,23 @@ def validate_colaborador(payload: dict[str, Any]) -> list[str]:
     ]
     errors = [f"Preencha: {field}" for field in required if not payload.get(field)]
     if "@" not in payload.get("email", ""):
-        errors.append("E-mail obrigatÃ³rio invÃ¡lido.")
+        errors.append("E-mail obrigatório inválido.")
     bank_fields = ["banco", "agencia", "conta", "pix"]
     if any(payload.get(field) for field in bank_fields) and not payload.get("_bank_confirmed"):
-        errors.append("Confirme a conferÃªncia dos dados bancÃ¡rios e Pix.")
+        errors.append("Confirme a conferência dos dados bancários e Pix.")
     return errors
 
 
 def dashboard() -> None:
-    st.title("Dashboard")
+    st.title(PAGE_DASHBOARD)
     colaboradores = get_colaboradores()
     docs = fetch_table("documentos_colaborador", "created_at", True)
     rescisoes = fetch_table("rescisoes", "created_at", True)
     vagas = fetch_table("vagas", "tipo_vinculo", False)
     ativos = [c for c in colaboradores if c.get("status") == "ativo"]
     pendencias = sum(len(status_documental(c, docs)[1]) for c in colaboradores)
-    contratos_pendentes = sum(1 for d in docs if d.get("documento") == "Contrato de estÃ¡gio" and d.get("status") != "recebido")
-    contratos_atraso = sum(1 for d in docs if d.get("documento") == "Contrato de estÃ¡gio" and d.get("status") == "em atraso")
+    contratos_pendentes = sum(1 for d in docs if d.get("documento") == DOC_CONTRATO_ESTAGIO and d.get("status") != "recebido")
+    contratos_atraso = sum(1 for d in docs if d.get("documento") == DOC_CONTRATO_ESTAGIO and d.get("status") == "em atraso")
     exames_pendentes = sum(1 for d in docs if d.get("documento") == "Exame admissional" and d.get("status") != "recebido")
     resc_abertas = [r for r in rescisoes if r.get("status_prazo") not in ("regularizado", "pago")]
     vencidas = [r for r in rescisoes if r.get("status_prazo") == "prazo legal vencido"]
@@ -505,34 +606,34 @@ def dashboard() -> None:
     metrics = [
         ("Ativos", len(ativos)),
         ("CLT", sum(1 for c in ativos if c.get("tipo_vinculo") == "CLT")),
-        ("EstagiÃ¡rios", sum(1 for c in ativos if c.get("tipo_vinculo") == "EstagiÃ¡rio")),
+        ("Estagi\u00e1rios", sum(1 for c in ativos if c.get("tipo_vinculo") == TIPO_ESTAGIARIO)),
         ("PJ", sum(1 for c in ativos if c.get("tipo_vinculo") == "PJ")),
         ("8 horas", sum(1 for c in ativos if c.get("tipo_vinculo") == "8 horas")),
         ("Docs pendentes", pendencias),
         ("Contratos pendentes", contratos_pendentes),
         ("Contratos em atraso", contratos_atraso),
         ("Exames pendentes", exames_pendentes),
-        ("RescisÃµes abertas", len(resc_abertas)),
-        ("PrÃ³ximas do prazo", len(proximas)),
-        ("RescisÃµes vencidas", len(vencidas)),
-        ("Aniversariantes mÃªs", len(aniversariantes)),
-        ("Vagas disponÃ­veis", vagas_disp),
+        ("Rescisões abertas", len(resc_abertas)),
+        ("Próximas do prazo", len(proximas)),
+        ("Rescisões vencidas", len(vencidas)),
+        ("Aniversariantes mês", len(aniversariantes)),
+        ("Vagas disponíveis", vagas_disp),
     ]
     cols = st.columns(4)
     for idx, (label, value) in enumerate(metrics):
         cols[idx % 4].metric(label, value)
 
-    st.subheader("PendÃªncias crÃ­ticas")
+    st.subheader("Pendências críticas")
     critical_rows = []
     for c in colaboradores:
         status, pend = status_documental(c, docs)
         if pend:
-            critical_rows.append({"nome": c["nome_completo"], "status": status, "pendÃªncias": "; ".join(pend[:8])})
+            critical_rows.append({"nome": c["nome_completo"], "status": status, "pendências": "; ".join(pend[:8])})
     st.dataframe(pd.DataFrame(critical_rows), use_container_width=True, hide_index=True)
 
 
 def page_colaboradores() -> None:
-    st.title("Colaboradores")
+    st.title(PAGE_COLABORADORES)
     colaboradores = get_colaboradores()
     if not colaboradores:
         st.info("Nenhum colaborador cadastrado.")
@@ -556,14 +657,14 @@ def page_colaboradores() -> None:
         return
     payload = collaborator_form("edit", selected)
     usuario = pin_form("alterar_dados_pessoais", "edit")
-    if st.button("Salvar alteraÃ§Ãµes", type="primary"):
+    if st.button("Salvar alterações", type="primary"):
         errors = validate_colaborador(payload)
         if errors:
             for err in errors:
                 st.error(err)
             return
         if not usuario:
-            st.error("Informe um PIN vÃ¡lido.")
+            st.error("Informe um PIN valido.")
             return
         payload.pop("_bank_confirmed", None)
         payload["updated_at"] = now_iso()
@@ -584,7 +685,7 @@ def page_novo_cadastro() -> None:
                 st.error(err)
             return
         if not usuario:
-            st.error("Informe um PIN vÃ¡lido.")
+            st.error("Informe um PIN valido.")
             return
         payload.pop("_bank_confirmed", None)
         payload["cadastro_incompleto"] = bool(pending_fields(payload, ["cpf", "rg", "email", "endereco", "cep"]))
@@ -595,16 +696,16 @@ def page_novo_cadastro() -> None:
         audit("cadastrar_colaborador", result["id"], usuario, None, result)
         _, pendings = status_documental(result, fetch_table("documentos_colaborador", "created_at", True))
         novo_colaborador_email(result, usuario, pendings)
-        st.success("Colaborador cadastrado e e-mail aos sÃ³cios processado.")
+        st.success("Colaborador cadastrado e e-mail aos sócios processado.")
         st.rerun()
 
 
 def create_default_docs(colaborador: dict[str, Any]) -> None:
-    docs = DOCUMENTOS_ESTAGIARIO if colaborador.get("tipo_vinculo") == "EstagiÃ¡rio" else DOCUMENTOS_CLT
+    docs = DOCUMENTOS_ESTAGIARIO if colaborador.get("tipo_vinculo") == TIPO_ESTAGIARIO else DOCUMENTOS_CLT
     rows = []
     for item in docs:
         status = "pendente"
-        if item == "Contrato de estÃ¡gio" and parse_date(colaborador.get("data_admissao")):
+        if item == DOC_CONTRATO_ESTAGIO and parse_date(colaborador.get("data_admissao")):
             if date.today() > parse_date(colaborador["data_admissao"]) + timedelta(days=7):
                 status = "em atraso"
         rows.append(
@@ -621,7 +722,7 @@ def create_default_docs(colaborador: dict[str, Any]) -> None:
 
 
 def page_documentacao() -> None:
-    st.title("DocumentaÃ§Ã£o")
+    st.title(PAGE_DOCUMENTACAO)
     colaboradores = get_colaboradores()
     selected = select_colaborador("Colaborador", colaboradores)
     if not selected:
@@ -642,15 +743,15 @@ def page_documentacao() -> None:
     data_recebimento = st.date_input("Data de recebimento", value=parse_date(doc.get("data_recebimento")), format="DD/MM/YYYY")
     status = st.selectbox("Status", ["pendente", "recebido", "em atraso"], index=["pendente", "recebido", "em atraso"].index(doc.get("status", "pendente")))
     referencia_pasta = st.text_input(
-        "Referencia na pasta interna",
+        "Referência na pasta interna",
         value=doc.get("arquivo_url", "") or "",
-        help="Informe o nome da pasta, caminho interno ou identificacao onde o documento foi salvo.",
+        help="Informe o nome da pasta, caminho interno ou identificação onde o documento foi salvo.",
     )
-    observacoes = st.text_area("ObservaÃ§Ãµes", value=doc.get("observacoes", ""))
+    observacoes = st.text_area("Observações", value=doc.get("observacoes", ""))
     usuario = pin_form("anexar_documento", "doc")
     if st.button("Salvar documento", type="primary"):
         if not usuario:
-            st.error("Informe um PIN vÃ¡lido.")
+            st.error("Informe um PIN valido.")
             return
         payload = {
             "recebido": recebido,
@@ -667,28 +768,28 @@ def page_documentacao() -> None:
 
 
 def page_rescisoes() -> None:
-    st.title("RescisÃµes")
+    st.title(PAGE_RESCISOES)
     colaboradores = [c for c in get_colaboradores() if c.get("status") == "ativo"]
     selected = select_colaborador("Colaborador ativo", colaboradores)
     if not selected:
         return
     tipo = st.selectbox("Tipo de desligamento", ["Pedido do colaborador", "Dispensa pela empresa"])
-    data_rescisao = st.date_input("Data da rescisÃ£o", value=date.today(), format="DD/MM/YYYY")
-    ultimo_dia = st.date_input("Ãšltimo dia trabalhado", value=date.today(), format="DD/MM/YYYY")
+    data_rescisao = st.date_input("Data da rescisão", value=date.today(), format="DD/MM/YYYY")
+    ultimo_dia = st.date_input("Último dia trabalhado", value=date.today(), format="DD/MM/YYYY")
     motivo = st.text_area("Motivo")
-    observacoes = st.text_area("ObservaÃ§Ãµes")
+    observacoes = st.text_area("Observações")
     carta_anexada = st.checkbox("Carta assinada salva na pasta interna")
-    referencia_carta = st.text_input("Referencia da carta na pasta interna")
-    referencia_comprovante = st.text_input("Referencia do comprovante na pasta interna")
+    referencia_carta = st.text_input("Referência da carta na pasta interna")
+    referencia_comprovante = st.text_input("Referência do comprovante na pasta interna")
     data_pagamento = st.date_input("Data de pagamento", value=None, format="DD/MM/YYYY")
     valor_pago = st.number_input("Valor pago", min_value=0.0, step=100.0)
     usuario = pin_form("registrar_rescisao", "rescisao")
-    if st.button("Registrar rescisÃ£o", type="primary"):
+    if st.button("Registrar rescisão", type="primary"):
         if tipo == "Pedido do colaborador" and not carta_anexada:
-            st.error("Carta assinada Ã© obrigatÃ³ria para pedido do colaborador.")
+            st.error("Carta assinada é obrigatória para pedido do colaborador.")
             return
         if not usuario:
-            st.error("Informe um PIN vÃ¡lido.")
+            st.error("Informe um PIN valido.")
             return
         status_prazo = calculate_rescisao_status(ultimo_dia, bool(data_pagamento))
         payload = {
@@ -712,31 +813,31 @@ def page_rescisoes() -> None:
         res = sb().table("rescisoes").insert(payload).execute().data[0]
         sb().table("colaboradores").update({"status": "rescindido", "data_rescisao": data_rescisao.isoformat(), "ultimo_dia_trabalhado": ultimo_dia.isoformat(), "updated_at": now_iso()}).eq("id", selected["id"]).execute()
         audit("registrar_rescisao", selected["id"], usuario, selected, res)
-        st.success("RescisÃ£o registrada.")
+        st.success("Rescisão registrada.")
         st.rerun()
 
-    st.subheader("RescisÃµes cadastradas")
+    st.subheader("Rescisões cadastradas")
     resc = fetch_table("rescisoes", "created_at", True)
     st.dataframe(pd.DataFrame(resc), use_container_width=True, hide_index=True)
     if not resc:
         return
 
-    st.subheader("Atualizar acompanhamento da rescisÃ£o")
+    st.subheader("Atualizar acompanhamento da rescisão")
     col_by_id = {c["id"]: c for c in get_colaboradores()}
     resc_options = {
         f"{col_by_id.get(r.get('colaborador_id'), {}).get('nome_completo', 'Colaborador')} | {r.get('status_prazo', '')} | {br_date(r.get('ultimo_dia_trabalhado'))}": r
         for r in resc
     }
-    chosen = st.selectbox("RescisÃ£o", list(resc_options.keys()))
+    chosen = st.selectbox("Rescisão", list(resc_options.keys()))
     current = resc_options[chosen]
     comunicada = st.checkbox("Contabilidade comunicada", value=bool(current.get("contabilidade_comunicada")))
     data_comunicacao = st.date_input(
-        "Data da comunicaÃ§Ã£o Ã  contabilidade",
+        "Data da comunicação à contabilidade",
         value=parse_date(current.get("data_comunicacao_contabilidade")),
         format="DD/MM/YYYY",
         key="rescisao_data_comunicacao",
     )
-    paga = st.checkbox("RescisÃ£o paga", value=bool(current.get("rescisao_paga")))
+    paga = st.checkbox("Rescisão paga", value=bool(current.get("rescisao_paga")))
     data_pagamento_update = st.date_input(
         "Data do pagamento",
         value=parse_date(current.get("data_pagamento")),
@@ -750,12 +851,12 @@ def page_rescisoes() -> None:
         step=100.0,
         key="rescisao_valor_pago_update",
     )
-    carta_update = st.checkbox("Carta de rescisao salva na pasta interna", value=bool(current.get("carta_anexada")))
-    referencia_comprovante_update = st.text_input("Referencia do comprovante na pasta interna", value=current.get("comprovante_pagamento_url", "") or "")
+    carta_update = st.checkbox("Carta de rescisão salva na pasta interna", value=bool(current.get("carta_anexada")))
+    referencia_comprovante_update = st.text_input("Referência do comprovante na pasta interna", value=current.get("comprovante_pagamento_url", "") or "")
     usuario_update = pin_form("confirmar_pagamento_rescisao", "rescisao_update")
     if st.button("Salvar acompanhamento", type="primary"):
         if not usuario_update:
-            st.error("Informe um PIN vÃ¡lido.")
+            st.error("Informe um PIN valido.")
             return
         carta_path = carta_update and not current.get("carta_anexada")
         comprovante_path = referencia_comprovante_update
@@ -795,17 +896,17 @@ def calculate_rescisao_status(ultimo_dia: date, pago: bool) -> str:
 
 
 def page_vagas() -> None:
-    st.title("Vagas")
+    st.title(PAGE_VAGAS)
     vagas = fetch_table("vagas", "tipo_vinculo", False)
     colaboradores = get_colaboradores()
     ativos = [c for c in colaboradores if c.get("status") == "ativo"]
-    for tipo in ["CLT", "EstagiÃ¡rio", "PJ", "8 horas"]:
+    for tipo in ["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas"]:
         occupied = sum(1 for c in ativos if c.get("tipo_vinculo") == tipo)
         existing = next((v for v in vagas if v.get("tipo_vinculo") == tipo), {})
         total = st.number_input(f"Vagas totais - {tipo}", min_value=0, value=int(existing.get("quantidade_total") or occupied), key=f"vaga_{tipo}")
         available = total - occupied
         pct = (occupied / total * 100) if total else 0
-        st.write(f"Ocupadas: **{occupied}** | DisponÃ­veis: **{available}** | OcupaÃ§Ã£o: **{pct:.1f}%**")
+        st.write(f"Ocupadas: **{occupied}** | Disponíveis: **{available}** | Ocupação: **{pct:.1f}%**")
         if st.button(f"Salvar {tipo}", key=f"save_vaga_{tipo}"):
             payload = {"tipo_vinculo": tipo, "quantidade_total": total, "quantidade_ocupada": occupied, "updated_at": now_iso()}
             if existing.get("id"):
@@ -818,7 +919,7 @@ def page_vagas() -> None:
 
 
 def page_aniversarios() -> None:
-    st.title("AniversÃ¡rios")
+    st.title(PAGE_ANIVERSARIOS)
     colaboradores = [c for c in get_colaboradores() if c.get("data_nascimento")]
     rows = []
     for c in colaboradores:
@@ -831,14 +932,14 @@ def page_aniversarios() -> None:
                 "data_nascimento": br_date(birth),
                 "idade": age(birth),
                 "tempo_empresa": company_time(c.get("data_admissao")),
-                "mes": birth.month if birth else None,
+                "mês": birth.month if birth else None,
                 "dia": birth.day if birth else None,
             }
         )
-    st.dataframe(pd.DataFrame(rows).sort_values(["mes", "dia"]), use_container_width=True, hide_index=True)
-    if st.button("Enviar alertas de aniversÃ¡rio de hoje/amanhÃ£"):
+    st.dataframe(pd.DataFrame(rows).sort_values(["mês", "dia"]), use_container_width=True, hide_index=True)
+    if st.button("Enviar alertas de aniversário de hoje/amanhã"):
         send_birthday_alerts()
-        st.success("Rotina de aniversÃ¡rios processada.")
+        st.success("Rotina de aniversários processada.")
 
 
 def send_birthday_alerts() -> None:
@@ -848,23 +949,23 @@ def send_birthday_alerts() -> None:
         birth = parse_date(c.get("data_nascimento"))
         if not birth:
             continue
-        for target, label in [(tomorrow, "amanhÃ£"), (today, "hoje")]:
+        for target, label in [(tomorrow, "amanhã"), (today, "hoje")]:
             if birth.month == target.month and birth.day == target.day:
                 new_age = age(birth, target)
-                subject = f"[AniversÃ¡rio {label}] Assis & Mollerke - {c['nome_completo']}"
-                body = f"""OlÃ¡,
+                subject = f"[Aniversário {label}] Assis & Mollerke - {c['nome_completo']}"
+                body = f"""Olá,
 
-{('AmanhÃ£ Ã©' if label == 'amanhÃ£' else 'Hoje Ã©')} aniversÃ¡rio de {c['nome_completo']}.
+{('Amanhã é' if label == 'amanhã' else 'Hoje é')} aniversário de {c['nome_completo']}.
 
 Dados:
 Nome: {c['nome_completo']}
-Tipo de vÃ­nculo: {c.get('tipo_vinculo', '')}
+Tipo de vínculo: {c.get('tipo_vinculo', '')}
 Cargo: {c.get('cargo', '')}
 Data de nascimento: {br_date(birth)}
 Idade: {new_age}
 Tempo de empresa: {company_time(c.get('data_admissao'))}
 
-Mensagem automÃ¡tica do sistema de controle de colaboradores.
+Mensagem automática do sistema de controle de colaboradores.
 """
                 email_and_log("aniversario", subject, body, SOCIOS_EMAILS + [SUPERVISOR_EMAIL])
 
@@ -872,7 +973,7 @@ Mensagem automÃ¡tica do sistema de controle de colaboradores.
 def dataframe_to_excel(df: pd.DataFrame) -> bytes:
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="RelatÃ³rio")
+        df.to_excel(writer, index=False, sheet_name="Relatório")
     return output.getvalue()
 
 
@@ -897,18 +998,18 @@ def dataframe_to_pdf(df: pd.DataFrame) -> bytes:
 
 
 def page_relatorios() -> None:
-    st.title("RelatÃ³rios")
+    st.title(PAGE_RELATORIOS)
     tipo = st.selectbox(
-        "RelatÃ³rio",
+        "Relatório",
         [
             "Colaboradores ativos",
             "Colaboradores inativos/rescindidos",
-            "DocumentaÃ§Ã£o pendente",
-            "RescisÃµes",
+            "Documentação pendente",
+            "Rescisões",
             "Aniversariantes",
             "Quadro semanal",
-            "HistÃ³rico de alteraÃ§Ãµes",
-            "Vagas disponÃ­veis",
+            "Histórico de alterações",
+            "Vagas disponíveis",
         ],
     )
     df = build_report(tipo)
@@ -927,14 +1028,14 @@ def build_report(tipo: str) -> pd.DataFrame:
         return pd.DataFrame([c for c in colaboradores if c.get("status") == "ativo"])
     if tipo == "Colaboradores inativos/rescindidos":
         return pd.DataFrame([c for c in colaboradores if c.get("status") != "ativo"])
-    if tipo == "DocumentaÃ§Ã£o pendente":
+    if tipo == "Documentação pendente":
         rows = []
         for c in colaboradores:
             _, pend = status_documental(c, docs)
             if pend:
-                rows.append({"nome": c["nome_completo"], "tipo": c.get("tipo_vinculo"), "pendÃªncias": "; ".join(pend)})
+                rows.append({"nome": c["nome_completo"], "tipo": c.get("tipo_vinculo"), "pendências": "; ".join(pend)})
         return pd.DataFrame(rows)
-    if tipo == "RescisÃµes":
+    if tipo == "Rescisões":
         return pd.DataFrame(fetch_table("rescisoes", "created_at", True))
     if tipo == "Aniversariantes":
         return pd.DataFrame(
@@ -950,9 +1051,9 @@ def build_report(tipo: str) -> pd.DataFrame:
                 if c.get("data_nascimento")
             ]
         )
-    if tipo == "HistÃ³rico de alteraÃ§Ãµes":
+    if tipo == "Histórico de alterações":
         return pd.DataFrame(fetch_table("historico_acoes", "created_at", True))
-    if tipo == "Vagas disponÃ­veis":
+    if tipo == "Vagas disponíveis":
         return pd.DataFrame(fetch_table("vagas", "tipo_vinculo", False))
     rows = []
     for c in colaboradores:
@@ -960,14 +1061,14 @@ def build_report(tipo: str) -> pd.DataFrame:
         rows.append(
             {
                 "Nome": c.get("nome_completo"),
-                "Tipo de vÃ­nculo": c.get("tipo_vinculo"),
+                "Tipo de vínculo": c.get("tipo_vinculo"),
                 "Cargo": c.get("cargo"),
-                "Data de admissÃ£o": br_date(c.get("data_admissao")),
+                "Data de admissão": br_date(c.get("data_admissao")),
                 "Tempo de empresa": company_time(c.get("data_admissao")),
                 "Data de nascimento": br_date(c.get("data_nascimento")),
                 "Idade": age(c.get("data_nascimento")),
                 "Status documental": doc_status,
-                "PendÃªncias": "; ".join(pend),
+                "Pendências": "; ".join(pend),
             }
         )
     return pd.DataFrame(rows)
@@ -984,7 +1085,7 @@ Segue o quadro atualizado de colaboradores da Assis & Mollerke.
 Resumo:
 Total de colaboradores ativos: {len(ativos)}
 Total CLT: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'CLT')}
-Total estagiÃ¡rios: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'EstagiÃ¡rio')}
+Total estagi\u00e1rios: {sum(1 for c in ativos if c.get('tipo_vinculo') == TIPO_ESTAGIARIO)}
 Total PJ: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'PJ')}
 Total 8 horas: {sum(1 for c in ativos if c.get('tipo_vinculo') == '8 horas')}
 Total inativos/rescindidos: {sum(1 for c in colaboradores if c.get('status') != 'ativo')}
@@ -992,21 +1093,21 @@ Total inativos/rescindidos: {sum(1 for c in colaboradores if c.get('status') != 
 Tabela:
 {df.to_string(index=False)}
 
-Este relatÃ³rio Ã© enviado automaticamente pelo sistema de controle de funcionÃ¡rios e estagiÃ¡rios.
+Este relatório é enviado automaticamente pelo sistema de controle de funcionários e estagiários.
 """
     email_and_log("quadro_semanal", subject, body, SOCIOS_EMAILS + [SUPERVISOR_EMAIL])
     sb().table("relatorios_semanais_log").insert({"data_referencia": date.today().isoformat(), "enviado": True, "created_at": now_iso()}).execute()
 
 
 def page_configuracoes() -> None:
-    st.title("ConfiguraÃ§Ãµes")
-    st.subheader("UsuÃ¡rios internos e PIN")
-    st.info("Por seguranÃ§a, cadastre apenas o hash do PIN. Gere o hash abaixo e salve na tabela usuarios.")
+    st.title(PAGE_CONFIGURACOES)
+    st.subheader("Usuários internos e PIN")
+    st.info("Por segurança, cadastre apenas o hash do PIN. Gere o hash abaixo e salve na tabela usuarios.")
     pin = st.text_input("PIN para gerar hash", type="password")
     if pin:
         st.code(sha256_pin(pin))
     st.subheader("Teste de SMTP")
-    to = st.text_input("DestinatÃ¡rio de teste", value="amadvjuridica@gmail.com")
+    to = st.text_input("Destinatário de teste", value="amadvjuridica@gmail.com")
     if st.button("Enviar teste"):
         email_and_log("teste_smtp", "[Teste SMTP] Assis & Mollerke", "E-mail de teste do sistema.", [to])
         st.success("Teste processado.")
@@ -1035,12 +1136,12 @@ def update_deadlines_and_alerts() -> None:
         nome = colaboradores.get(r.get("colaborador_id"), {}).get("nome_completo", "colaborador")
         days = (date.today() - ultimo).days + 1
         if 1 <= days <= 7 and not r.get("contabilidade_comunicada"):
-            subject = f"[RescisÃ£o] Contabilidade comunicada? - {nome}"
-            body = f"A contabilidade jÃ¡ foi comunicada sobre a rescisÃ£o de {nome}?"
+            subject = f"[Rescisao] Contabilidade comunicada? - {nome}"
+            body = f"A contabilidade já foi comunicada sobre a rescisão de {nome}?"
             email_and_log("rescisao_contabilidade", subject, body, SOCIOS_EMAILS, [SUPERVISOR_EMAIL])
         elif days >= 8 and not r.get("rescisao_paga"):
-            subject = f"[RescisÃ£o] Pagamento pendente - {nome}"
-            body = f"A rescisÃ£o de {nome} jÃ¡ foi paga? Status atual: {status}."
+            subject = f"[Rescisao] Pagamento pendente - {nome}"
+            body = f"A rescisão de {nome} já foi paga? Status atual: {status}."
             email_and_log("rescisao_pagamento", subject, body, SOCIOS_EMAILS, [SUPERVISOR_EMAIL])
 
 
@@ -1051,37 +1152,42 @@ def main() -> None:
         st.sidebar.image(LOGO_PATH, use_container_width=True)
     except Exception:
         st.sidebar.title("A&M")
-    st.sidebar.caption("Assis & Mollerke")
+    st.sidebar.caption(f"{BRAND_NAME} | Confidencial")
     page = st.sidebar.radio(
         "Menu",
         [
-            "Dashboard",
-            "Colaboradores",
-            "Novo cadastro",
-            "DocumentaÃ§Ã£o",
-            "RescisÃµes",
-            "Vagas",
-            "AniversÃ¡rios",
-            "RelatÃ³rios",
-            "ConfiguraÃ§Ãµes",
-            "Auditoria",
+            PAGE_DASHBOARD,
+            PAGE_COLABORADORES,
+            PAGE_NOVO_CADASTRO,
+            PAGE_DOCUMENTACAO,
+            PAGE_RESCISOES,
+            PAGE_VAGAS,
+            PAGE_ANIVERSARIOS,
+            PAGE_RELATORIOS,
+            PAGE_CONFIGURACOES,
+            PAGE_AUDITORIA,
         ],
     )
     update_deadlines_and_alerts()
     pages = {
-        "Dashboard": dashboard,
-        "Colaboradores": page_colaboradores,
-        "Novo cadastro": page_novo_cadastro,
-        "DocumentaÃ§Ã£o": page_documentacao,
-        "RescisÃµes": page_rescisoes,
-        "Vagas": page_vagas,
-        "AniversÃ¡rios": page_aniversarios,
-        "RelatÃ³rios": page_relatorios,
-        "ConfiguraÃ§Ãµes": page_configuracoes,
-        "Auditoria": page_auditoria,
+        PAGE_DASHBOARD: dashboard,
+        PAGE_COLABORADORES: page_colaboradores,
+        PAGE_NOVO_CADASTRO: page_novo_cadastro,
+        PAGE_DOCUMENTACAO: page_documentacao,
+        PAGE_RESCISOES: page_rescisoes,
+        PAGE_VAGAS: page_vagas,
+        PAGE_ANIVERSARIOS: page_aniversarios,
+        PAGE_RELATORIOS: page_relatorios,
+        PAGE_CONFIGURACOES: page_configuracoes,
+        PAGE_AUDITORIA: page_auditoria,
     }
+    institutional_header(page)
     pages[page]()
+    institutional_footer()
 
 
 if __name__ == "__main__":
     main()
+
+
+
