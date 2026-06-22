@@ -708,7 +708,8 @@ def dashboard() -> None:
         ("Rescisões vencidas", len(vencidas)),
         ("Aniversariantes mês", len(aniversariantes)),
         ("Vagas disponíveis", vagas_disp),
-    ]    cols = st.columns(4)
+    ]
+    cols = st.columns(4)
     for idx, (label, value) in enumerate(metrics):
         cols[idx % 4].metric(label, value)
 
@@ -1303,6 +1304,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
