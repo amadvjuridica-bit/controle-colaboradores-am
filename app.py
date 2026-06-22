@@ -41,7 +41,7 @@ DOC_CONTRATO_ESTAGIO = "Contrato de est\u00e1gio"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_COLABORADORES = "Colaboradores"
 PAGE_DOCUMENTACAO = "Documenta\u00e7\u00e3o"
-PAGE_RESCISOES = "Rescis\u00f5es"
+PAGE_RESCISOES = "Desligamentos"
 PAGE_VAGAS = "Vagas"
 PAGE_ANIVERSARIOS = "Anivers\u00e1rios"
 PAGE_RELATORIOS = "Relat\u00f3rios"
@@ -294,6 +294,71 @@ def colaboradores_dataframe(colaboradores: list[dict[str, Any]]) -> pd.DataFrame
         )
     return pd.DataFrame(rows)
 
+
+def required_documents_for_tipo(tipo_vinculo: str) -> list[str]:
+    return DOCUMENTOS_ESTAGIARIO if tipo_vinculo == TIPO_ESTAGIARIO else DOCUMENTOS_CLT
+
+
+def docs_by_name(docs: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    return {doc.get("documento"): doc for doc in (docs or [])}
+
+
+def document_checklist_form(prefix: str, tipo_vinculo: str, docs: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    existing = docs_by_name(docs)
+    rows = []
+    st.markdown('<div class="am-section"></div>', unsafe_allow_html=True)
+    st.subheader("Documentação")
+    st.caption("Marque o que já foi recebido. O que ficar desmarcado entra como pendência automática.")
+    for index, documento in enumerate(required_documents_for_tipo(tipo_vinculo)):
+        current = existing.get(documento, {})
+        cols = st.columns([1.4, 1, 1.6])
+        recebido = cols[0].checkbox(documento, value=bool(current.get("recebido") or current.get("status") == "recebido"), key=f"{prefix}_doc_{index}_recebido")
+        data_recebimento = cols[1].date_input(
+            "Recebido em",
+            value=parse_date(current.get("data_recebimento")) if recebido else None,
+            format="DD/MM/YYYY",
+            key=f"{prefix}_doc_{index}_data",
+        )
+        referencia = cols[2].text_input(
+            "Referência/pasta",
+            value=current.get("arquivo_url", "") or "",
+            key=f"{prefix}_doc_{index}_ref",
+        )
+        rows.append(
+            {
+                "documento": documento,
+                "recebido": recebido,
+                "data_recebimento": data_recebimento.isoformat() if recebido and data_recebimento else None,
+                "arquivo_url": referencia.strip(),
+                "status": "recebido" if recebido else current.get("status", "pendente"),
+            }
+        )
+    return rows
+
+
+def save_document_checklist(colaborador: dict[str, Any], docs_state: list[dict[str, Any]]) -> None:
+    existing = docs_by_name(sb().table("documentos_colaborador").select("*").eq("colaborador_id", colaborador["id"]).execute().data or [])
+    for item in docs_state:
+        payload = {
+            "colaborador_id": colaborador["id"],
+            "documento": item["documento"],
+            "recebido": item["recebido"],
+            "data_recebimento": item.get("data_recebimento"),
+            "arquivo_url": item.get("arquivo_url"),
+            "status": item.get("status") or ("recebido" if item["recebido"] else "pendente"),
+            "updated_at": now_iso(),
+        }
+        current = existing.get(item["documento"])
+        if current:
+            sb().table("documentos_colaborador").update(payload).eq("id", current["id"]).execute()
+        else:
+            payload["created_at"] = now_iso()
+            sb().table("documentos_colaborador").insert(payload).execute()
+
+
+def document_status_label(colaborador: dict[str, Any], docs: list[dict[str, Any]]) -> str:
+    _, pendings = status_documental(colaborador, docs)
+    return "Completa" if not pendings else f"{len(pendings)} pendência(s)"
 def institutional_header(section: str | None = None) -> None:
     subtitle = CONFIDENTIAL_NOTICE
     if section:
@@ -535,13 +600,12 @@ Status documental: {'completo' if not pendings else 'parcial'}
 Documentos pendentes: {', '.join(pendings) if pendings else 'Nenhum'}
 Dados bancários informados: {'sim' if colaborador.get('banco') and colaborador.get('conta') else 'não'}
 Pix informado: {'sim' if colaborador.get('pix') else 'não'}
-Usuário/PIN responsável pelo cadastro: {usuario.get('nome')}
 Data e hora do cadastro: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 """
     email_and_log("novo_colaborador", subject, body, SOCIOS_EMAILS)
 
 
-def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dict[str, Any]:
+def collaborator_form(prefix: str, current: dict[str, Any] | None = None, docs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     current = current or {}
     tipo_atual = normalize_tipo_vinculo(current.get("tipo_vinculo", "CLT"))
     carga_atual = carga_horaria_from_colaborador(current)
@@ -618,9 +682,10 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
         cpf_titular = st.text_input("CPF/CNPJ do titular", value=current.get("cpf_titular", ""), key=f"{prefix}_cpf_titular")
 
     bank_confirmed = st.checkbox(
-        "Confirmo que conferi os dados bancários e o Pix informado.",
+        "Dados bancários conferidos.",
         key=f"{prefix}_bank_confirmed",
     )
+    docs_state = document_checklist_form(prefix, tipo_vinculo, docs)
 
     return {
         "nome_completo": format_full_name(nome),
@@ -647,6 +712,7 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
         "cpf_titular": cpf_titular.strip(),
         "observacoes": merge_carga_horaria_observacoes(observacoes.strip(), carga_horaria.strip()),
         "_bank_confirmed": bank_confirmed,
+        "_docs": docs_state,
     }
 
 def validate_colaborador(payload: dict[str, Any]) -> list[str]:
@@ -724,93 +790,97 @@ def dashboard() -> None:
 
 def render_novo_cadastro() -> None:
     payload = collaborator_form("new")
-    usuario = pin_form("cadastrar_colaborador", "new")
     if st.button("Cadastrar colaborador", type="primary"):
         errors = validate_colaborador(payload)
         if errors:
             for err in errors:
                 st.error(err)
             return
-        if not usuario:
-            st.error("Informe um PIN valido.")
-            return
+        docs_state = payload.pop("_docs", [])
         payload.pop("_bank_confirmed", None)
         payload["cadastro_incompleto"] = bool(pending_fields(payload, ["cpf", "rg", "email", "endereco", "cep"]))
         payload["created_at"] = now_iso()
         payload["updated_at"] = now_iso()
         result = sb().table("colaboradores").insert(payload).execute().data[0]
-        create_default_docs(result)
-        audit("cadastrar_colaborador", result["id"], usuario, None, result)
+        save_document_checklist(result, docs_state)
+        audit("cadastrar_colaborador", result["id"], None, None, result)
         _, pendings = status_documental(result, fetch_table("documentos_colaborador", "created_at", True))
-        novo_colaborador_email(result, usuario, pendings)
+        novo_colaborador_email(result, {"nome": "Sistema"}, pendings)
         st.success("Colaborador cadastrado e e-mail aos sócios processado automaticamente.")
         st.rerun()
 
 
 def page_colaboradores() -> None:
-    st.title(PAGE_COLABORADORES)
+    st.title("Colaboradores")
     colaboradores = get_colaboradores()
+    docs = fetch_table("documentos_colaborador", "created_at", True)
     ativos = [c for c in colaboradores if c.get("status") == "ativo"]
+    pendencias_doc = sum(1 for c in ativos if status_documental(c, docs)[1])
 
+    st.markdown(
+        '<div class="am-hero"><strong>Controle de equipe</strong><span>Cadastro, consulta e documentação em uma única tela.</span></div>',
+        unsafe_allow_html=True,
+    )
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Ativos", len(ativos))
     m2.metric("CLT", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT"))
     m3.metric("Estagiários", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == TIPO_ESTAGIARIO))
-    m4.metric("PJ", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "PJ"))
+    m4.metric("Com pendência", pendencias_doc)
 
-    tab_consulta, tab_novo, tab_editar = st.tabs(["Ativos e consulta", "Novo cadastro", "Editar dados"])
+    tab_lista, tab_novo, tab_editar = st.tabs(["Equipe", "Cadastrar", "Editar"])
 
-    with tab_consulta:
+    with tab_lista:
         if not colaboradores:
             st.info("Nenhum colaborador cadastrado.")
-        else:
-            f1, f2, f3 = st.columns([2, 1, 1])
-            busca = f1.text_input("Buscar por nome, cargo, e-mail ou CPF", key="colab_busca")
-            status_filtro = f2.selectbox("Status", ["todos", "ativo", "inativo", "rescindido"], key="colab_status")
-            tipo_filtro = f3.selectbox("Tipo", ["todos"] + TIPOS_VINCULO, key="colab_tipo")
-            filtrados = []
-            busca_lower = busca.strip().lower()
-            for c in colaboradores:
-                tipo = normalize_tipo_vinculo(c.get("tipo_vinculo"))
-                haystack = " ".join(str(c.get(k, "")) for k in ["nome_completo", "cargo", "email", "cpf", "telefone"]).lower()
-                if busca_lower and busca_lower not in haystack:
-                    continue
-                if status_filtro != "todos" and c.get("status") != status_filtro:
-                    continue
-                if tipo_filtro != "todos" and tipo != tipo_filtro:
-                    continue
-                filtrados.append(c)
-            st.dataframe(colaboradores_dataframe(filtrados), use_container_width=True, hide_index=True)
+            return
+        f1, f2 = st.columns([2, 1])
+        busca = f1.text_input("Buscar", placeholder="Nome, cargo, e-mail ou CPF", key="colab_busca")
+        status_filtro = f2.selectbox("Status", ["ativo", "todos", "inativo", "rescindido"], key="colab_status")
+        busca_lower = busca.strip().lower()
+        rows = []
+        for c in colaboradores:
+            if status_filtro != "todos" and c.get("status") != status_filtro:
+                continue
+            haystack = " ".join(str(c.get(k, "")) for k in ["nome_completo", "cargo", "email", "cpf", "telefone"]).lower()
+            if busca_lower and busca_lower not in haystack:
+                continue
+            rows.append(
+                {
+                    "Nome": c.get("nome_completo"),
+                    "Vínculo": colaborador_tipo_label(c),
+                    "Cargo": c.get("cargo"),
+                    "Admissão": br_date(c.get("data_admissao")),
+                    "Documentos": document_status_label(c, docs),
+                    "E-mail": c.get("email"),
+                    "Telefone": c.get("telefone"),
+                }
+            )
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     with tab_novo:
         render_novo_cadastro()
 
     with tab_editar:
         if not colaboradores:
-            st.info("Cadastre o primeiro colaborador na aba Novo cadastro.")
+            st.info("Cadastre o primeiro colaborador na aba Cadastrar.")
             return
-        selected = select_colaborador("Selecione", colaboradores)
-        if not selected:
-            return
-        payload = collaborator_form("edit", selected)
-        usuario = pin_form("alterar_dados_pessoais", "edit")
+        selected = select_colaborador("Colaborador", colaboradores)
+        selected_docs = [d for d in docs if d.get("colaborador_id") == selected.get("id")]
+        payload = collaborator_form("edit", selected, selected_docs)
         if st.button("Salvar alterações", type="primary"):
             errors = validate_colaborador(payload)
             if errors:
                 for err in errors:
                     st.error(err)
                 return
-            if not usuario:
-                st.error("Informe um PIN valido.")
-                return
+            docs_state = payload.pop("_docs", [])
             payload.pop("_bank_confirmed", None)
             payload["updated_at"] = now_iso()
             sb().table("colaboradores").update(payload).eq("id", selected["id"]).execute()
-            audit("alterar_dados_pessoais", selected["id"], usuario, selected, payload)
+            save_document_checklist(selected, docs_state)
+            audit("alterar_dados_pessoais", selected["id"], None, selected, payload)
             st.success("Colaborador atualizado.")
             st.rerun()
-
-
 
 def page_novo_cadastro() -> None:
     st.title("Novo cadastro")
@@ -899,13 +969,9 @@ def page_rescisoes() -> None:
     referencia_comprovante = st.text_input("Referência do comprovante na pasta interna")
     data_pagamento = st.date_input("Data de pagamento", value=None, format="DD/MM/YYYY")
     valor_pago = st.number_input("Valor pago", min_value=0.0, step=100.0)
-    usuario = pin_form("registrar_rescisao", "rescisao")
-    if st.button("Registrar rescisão", type="primary"):
+    if st.button("Registrar desligamento", type="primary"):
         if tipo == "Pedido do colaborador" and not carta_anexada:
             st.error("Carta assinada é obrigatória para pedido do colaborador.")
-            return
-        if not usuario:
-            st.error("Informe um PIN valido.")
             return
         status_prazo = calculate_rescisao_status(ultimo_dia, bool(data_pagamento))
         payload = {
@@ -928,8 +994,8 @@ def page_rescisoes() -> None:
         }
         res = sb().table("rescisoes").insert(payload).execute().data[0]
         sb().table("colaboradores").update({"status": "rescindido", "data_rescisao": data_rescisao.isoformat(), "ultimo_dia_trabalhado": ultimo_dia.isoformat(), "updated_at": now_iso()}).eq("id", selected["id"]).execute()
-        audit("registrar_rescisao", selected["id"], usuario, selected, res)
-        st.success("Rescisão registrada.")
+        audit("registrar_rescisao", selected["id"], None, selected, res)
+        st.success("Desligamento registrado.")
         st.rerun()
 
     st.subheader("Rescisões cadastradas")
@@ -969,11 +1035,7 @@ def page_rescisoes() -> None:
     )
     carta_update = st.checkbox("Carta de rescisão salva na pasta interna", value=bool(current.get("carta_anexada")))
     referencia_comprovante_update = st.text_input("Referência do comprovante na pasta interna", value=current.get("comprovante_pagamento_url", "") or "")
-    usuario_update = pin_form("confirmar_pagamento_rescisao", "rescisao_update")
     if st.button("Salvar acompanhamento", type="primary"):
-        if not usuario_update:
-            st.error("Informe um PIN valido.")
-            return
         carta_path = carta_update and not current.get("carta_anexada")
         comprovante_path = referencia_comprovante_update
         ultimo = parse_date(current.get("ultimo_dia_trabalhado")) or date.today()
@@ -993,7 +1055,7 @@ def page_rescisoes() -> None:
             payload["comprovante_pagamento_url"] = referencia_comprovante_update
         sb().table("rescisoes").update(payload).eq("id", current["id"]).execute()
         action = "confirmar_pagamento_rescisao" if paga else "confirmar_contabilidade"
-        audit(action, current["colaborador_id"], usuario_update, current, payload)
+        audit(action, current["colaborador_id"], None, current, payload)
         st.success("Acompanhamento atualizado.")
         st.rerun()
 
@@ -1281,29 +1343,24 @@ def main() -> None:
     page = st.sidebar.radio(
         "Menu",
         [
-            PAGE_DASHBOARD,
             PAGE_COLABORADORES,
-            PAGE_DOCUMENTACAO,
             PAGE_RESCISOES,
             PAGE_RELATORIOS,
-            PAGE_CONFIGURACOES,
         ],
     )
     update_deadlines_and_alerts()
     pages = {
-        PAGE_DASHBOARD: dashboard,
         PAGE_COLABORADORES: page_colaboradores,
-        PAGE_DOCUMENTACAO: page_documentacao,
         PAGE_RESCISOES: page_rescisoes,
         PAGE_RELATORIOS: page_relatorios,
-        PAGE_CONFIGURACOES: page_configuracoes,
     }
-    institutional_header(page)
     pages[page]()
     institutional_footer()
 
 if __name__ == "__main__":
     main()
+
+
 
 
 
