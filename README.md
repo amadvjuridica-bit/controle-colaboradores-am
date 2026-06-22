@@ -1,6 +1,6 @@
-# Controle de Colaboradores - Assis & Mollerke
+﻿# Controle de Colaboradores - Assis & Mollerke
 
-Aplicativo Streamlit para controle interno de funcionários CLT, estagiários, PJ, vínculos de 8 horas, documentação, rescisões, vagas, aniversários, relatórios, auditoria por PIN e alertas por e-mail.
+Aplicativo Streamlit para controle interno de funcionários CLT, estagiários e PJ, com carga horária para CLT, documentação, rescisões, relatórios, auditoria por PIN e alertas por e-mail.
 
 ## Estrutura
 
@@ -69,9 +69,9 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Rotinas automáticas 24h
+## E-mails e rotinas automáticas
 
-O Streamlit Cloud mantém o app online, mas não é um agendador garantido para tarefas em horário fixo. Para alertas diários e relatório semanal, rode:
+O cadastro de novo colaborador dispara e-mail automaticamente ao salvar, desde que o SMTP esteja configurado. Aniversários, pendências documentais, rescisões e relatório semanal ficam 100% automáticos quando a rotina diária abaixo está agendada. O Streamlit Cloud mantém o app online, mas não é um agendador garantido para tarefas em horário fixo. Para alertas diários e relatório semanal, rode:
 
 ```bash
 python scripts/run_daily_jobs.py
@@ -95,3 +95,4 @@ python scripts/import_initial_xlsx.py
 ```
 
 Campos vazios são importados, mantidos editáveis e marcados como cadastro incompleto.
+
