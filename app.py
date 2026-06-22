@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+import re
 import smtplib
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
@@ -39,7 +40,6 @@ TIPO_ESTAGIARIO = "Estagi\u00e1rio"
 DOC_CONTRATO_ESTAGIO = "Contrato de est\u00e1gio"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_COLABORADORES = "Colaboradores"
-PAGE_NOVO_CADASTRO = "Novo cadastro"
 PAGE_DOCUMENTACAO = "Documenta\u00e7\u00e3o"
 PAGE_RESCISOES = "Rescis\u00f5es"
 PAGE_VAGAS = "Vagas"
@@ -48,6 +48,9 @@ PAGE_RELATORIOS = "Relat\u00f3rios"
 PAGE_CONFIGURACOES = "Configura\u00e7\u00f5es"
 PAGE_AUDITORIA = "Auditoria"
 
+TIPOS_VINCULO = ["CLT", TIPO_ESTAGIARIO, "PJ", "Outro"]
+CARGAS_HORARIAS_CLT = ["6 horas", "8 horas", "Outra"]
+CARGA_HORARIA_RE = re.compile(r"^Carga horária CLT:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
 DOCUMENTOS_ESTAGIARIO = [
     DOC_CONTRATO_ESTAGIO,
     "RG",
@@ -89,7 +92,7 @@ def css() -> None:
             --am-yellow: #b7791f;
             --am-green: #067647;
         }
-        .stApp { background: #f5f7fb; color: var(--am-ink); }
+        .stApp { background: #f7f8fb; color: var(--am-ink); }
         .block-container { padding-top: 1.1rem; padding-bottom: 3.25rem; max-width: 1280px; }
         [data-testid="stSidebar"] {
             background: linear-gradient(180deg, #ffffff 0%, #f6f8fc 100%);
@@ -97,7 +100,7 @@ def css() -> None:
         }
         [data-testid="stSidebar"] img { max-width: 210px; margin: .25rem auto .75rem; display: block; }
         h1, h2, h3 { color: var(--am-blue); letter-spacing: 0; font-weight: 720; }
-        h1 { font-size: 1.85rem; }
+        h1 { font-size: 1.72rem; }
         h2, h3 { margin-top: 1.1rem; }
         label, [data-testid="stWidgetLabel"] p { color: #29324f; font-weight: 650; }
         input, textarea, [data-baseweb="select"] > div {
@@ -164,7 +167,28 @@ def css() -> None:
             border-radius: 8px;
             font-weight: 650;
         }
-        </style>
+        div[data-testid="stTabs"] button { font-weight: 700; }
+        .am-section {
+            border-top: 1px solid #dbe2ee;
+            margin-top: 18px;
+            padding-top: 14px;
+        }
+        .email-ok {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #14532d;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-weight: 650;
+        }
+        .email-warn {
+            border: 1px solid #fed7aa;
+            background: #fff7ed;
+            color: #7c2d12;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-weight: 650;
+        }        </style>
         """,
         unsafe_allow_html=True,
     )
@@ -215,6 +239,60 @@ def format_full_name(value: str) -> str:
         words.append(lower if lower in particles and words else lower.capitalize())
     return " ".join(words)
 
+def normalize_tipo_vinculo(value: Any) -> str:
+    if value == "8 horas":
+        return "CLT"
+    return value if value in TIPOS_VINCULO else "CLT"
+
+
+def carga_horaria_from_colaborador(colaborador: dict[str, Any]) -> str:
+    if colaborador.get("tipo_vinculo") == "8 horas":
+        return "8 horas"
+    explicit = colaborador.get("carga_horaria")
+    if explicit:
+        return str(explicit)
+    match = CARGA_HORARIA_RE.search(colaborador.get("observacoes") or "")
+    return match.group(1).strip() if match else ""
+
+
+def observacoes_sem_carga(value: str | None) -> str:
+    cleaned = CARGA_HORARIA_RE.sub("", value or "")
+    return "\n".join(line for line in cleaned.splitlines() if line.strip()).strip()
+
+
+def merge_carga_horaria_observacoes(observacoes: str, carga_horaria: str) -> str:
+    observacoes = observacoes_sem_carga(observacoes)
+    if carga_horaria:
+        line = f"Carga horária CLT: {carga_horaria}"
+        return f"{line}\n{observacoes}".strip()
+    return observacoes
+
+
+def colaborador_tipo_label(colaborador: dict[str, Any]) -> str:
+    tipo = normalize_tipo_vinculo(colaborador.get("tipo_vinculo"))
+    carga = carga_horaria_from_colaborador(colaborador)
+    if tipo == "CLT" and carga:
+        return f"CLT ({carga})"
+    return tipo
+
+
+def colaboradores_dataframe(colaboradores: list[dict[str, Any]]) -> pd.DataFrame:
+    rows = []
+    for c in colaboradores:
+        rows.append(
+            {
+                "nome": c.get("nome_completo"),
+                "tipo": colaborador_tipo_label(c),
+                "carga_horaria": carga_horaria_from_colaborador(c) if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT" else "",
+                "cargo": c.get("cargo"),
+                "status": c.get("status"),
+                "data_admissao": br_date(c.get("data_admissao")),
+                "email": c.get("email"),
+                "telefone": c.get("telefone"),
+                "cpf": c.get("cpf"),
+            }
+        )
+    return pd.DataFrame(rows)
 
 def institutional_header(section: str | None = None) -> None:
     subtitle = CONFIDENTIAL_NOTICE
@@ -465,6 +543,12 @@ Data e hora do cadastro: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
 def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dict[str, Any]:
     current = current or {}
+    tipo_atual = normalize_tipo_vinculo(current.get("tipo_vinculo", "CLT"))
+    carga_atual = carga_horaria_from_colaborador(current)
+    observacoes_atual = observacoes_sem_carga(current.get("observacoes", ""))
+
+    st.markdown('<div class="am-section"></div>', unsafe_allow_html=True)
+    st.subheader("Dados principais")
     c1, c2, c3 = st.columns(3)
     with c1:
         nome = st.text_input("Nome completo*", value=current.get("nome_completo", ""), key=f"{prefix}_nome")
@@ -483,16 +567,20 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
         email = st.text_input("E-mail obrigatório*", value=current.get("email", ""), key=f"{prefix}_email")
         endereco = st.text_area("Endereço completo*", value=current.get("endereco", ""), key=f"{prefix}_endereco")
         cep = st.text_input("CEP*", value=current.get("cep", ""), key=f"{prefix}_cep")
+    with c3:
         cargo = st.text_input("Cargo/função*", value=current.get("cargo", ""), key=f"{prefix}_cargo")
         tipo_vinculo = st.selectbox(
             "Tipo de vínculo*",
-            ["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas", "Outro"],
-            index=["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas", "Outro"].index(current.get("tipo_vinculo", "CLT"))
-            if current.get("tipo_vinculo", "CLT") in ["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas", "Outro"]
-            else 0,
+            TIPOS_VINCULO,
+            index=TIPOS_VINCULO.index(tipo_atual) if tipo_atual in TIPOS_VINCULO else 0,
             key=f"{prefix}_tipo",
         )
-    with c3:
+        carga_horaria = ""
+        if tipo_vinculo == "CLT":
+            carga_opcoes = CARGAS_HORARIAS_CLT
+            carga_index = carga_opcoes.index(carga_atual) if carga_atual in carga_opcoes else 1
+            carga_escolhida = st.selectbox("Carga horária CLT*", carga_opcoes, index=carga_index, key=f"{prefix}_carga")
+            carga_horaria = st.text_input("Descreva a carga horária", value=carga_atual if carga_escolhida == "Outra" else "", key=f"{prefix}_carga_outro") if carga_escolhida == "Outra" else carga_escolhida
         status = st.selectbox(
             "Status*",
             ["ativo", "inativo", "rescindido"],
@@ -507,7 +595,7 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
             format="DD/MM/YYYY",
             key=f"{prefix}_admissao",
         )
-        observacoes = st.text_area("Observações", value=current.get("observacoes", ""), key=f"{prefix}_obs")
+        observacoes = st.text_area("Observações", value=observacoes_atual, key=f"{prefix}_obs")
 
     st.subheader("Dados bancários e Pix")
     st.markdown(
@@ -557,10 +645,9 @@ def collaborator_form(prefix: str, current: dict[str, Any] | None = None) -> dic
         "tipo_pix": tipo_pix.strip(),
         "titular_conta": titular_conta.strip(),
         "cpf_titular": cpf_titular.strip(),
-        "observacoes": observacoes.strip(),
+        "observacoes": merge_carga_horaria_observacoes(observacoes.strip(), carga_horaria.strip()),
         "_bank_confirmed": bank_confirmed,
     }
-
 
 def validate_colaborador(payload: dict[str, Any]) -> list[str]:
     required = [
@@ -578,6 +665,8 @@ def validate_colaborador(payload: dict[str, Any]) -> list[str]:
         "data_admissao",
     ]
     errors = [f"Preencha: {field}" for field in required if not payload.get(field)]
+    if payload.get("tipo_vinculo") == "CLT" and not carga_horaria_from_colaborador({"tipo_vinculo": "CLT", "observacoes": payload.get("observacoes", "")}):
+        errors.append("Informe a carga horária do CLT.")
     if "@" not in payload.get("email", ""):
         errors.append("E-mail obrigatório inválido.")
     bank_fields = ["banco", "agencia", "conta", "pix"]
@@ -605,10 +694,11 @@ def dashboard() -> None:
 
     metrics = [
         ("Ativos", len(ativos)),
-        ("CLT", sum(1 for c in ativos if c.get("tipo_vinculo") == "CLT")),
-        ("Estagi\u00e1rios", sum(1 for c in ativos if c.get("tipo_vinculo") == TIPO_ESTAGIARIO)),
-        ("PJ", sum(1 for c in ativos if c.get("tipo_vinculo") == "PJ")),
-        ("8 horas", sum(1 for c in ativos if c.get("tipo_vinculo") == "8 horas")),
+        ("CLT", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT")),
+        ("CLT 6h", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT" and carga_horaria_from_colaborador(c) == "6 horas")),
+        ("CLT 8h", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT" and carga_horaria_from_colaborador(c) == "8 horas")),
+        ("Estagi\u00e1rios", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == TIPO_ESTAGIARIO)),
+        ("PJ", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "PJ")),
         ("Docs pendentes", pendencias),
         ("Contratos pendentes", contratos_pendentes),
         ("Contratos em atraso", contratos_atraso),
@@ -618,8 +708,7 @@ def dashboard() -> None:
         ("Rescisões vencidas", len(vencidas)),
         ("Aniversariantes mês", len(aniversariantes)),
         ("Vagas disponíveis", vagas_disp),
-    ]
-    cols = st.columns(4)
+    ]    cols = st.columns(4)
     for idx, (label, value) in enumerate(metrics):
         cols[idx % 4].metric(label, value)
 
@@ -632,50 +721,7 @@ def dashboard() -> None:
     st.dataframe(pd.DataFrame(critical_rows), use_container_width=True, hide_index=True)
 
 
-def page_colaboradores() -> None:
-    st.title(PAGE_COLABORADORES)
-    colaboradores = get_colaboradores()
-    if not colaboradores:
-        st.info("Nenhum colaborador cadastrado.")
-        return
-    df = pd.DataFrame(colaboradores)
-    visible = [
-        "nome_completo",
-        "tipo_vinculo",
-        "cargo",
-        "status",
-        "data_admissao",
-        "email",
-        "telefone",
-        "cpf",
-    ]
-    st.dataframe(df[[c for c in visible if c in df.columns]], use_container_width=True, hide_index=True)
-
-    st.subheader("Editar colaborador")
-    selected = select_colaborador("Selecione", colaboradores)
-    if not selected:
-        return
-    payload = collaborator_form("edit", selected)
-    usuario = pin_form("alterar_dados_pessoais", "edit")
-    if st.button("Salvar alterações", type="primary"):
-        errors = validate_colaborador(payload)
-        if errors:
-            for err in errors:
-                st.error(err)
-            return
-        if not usuario:
-            st.error("Informe um PIN valido.")
-            return
-        payload.pop("_bank_confirmed", None)
-        payload["updated_at"] = now_iso()
-        sb().table("colaboradores").update(payload).eq("id", selected["id"]).execute()
-        audit("alterar_dados_pessoais", selected["id"], usuario, selected, payload)
-        st.success("Colaborador atualizado.")
-        st.rerun()
-
-
-def page_novo_cadastro() -> None:
-    st.title("Novo cadastro")
+def render_novo_cadastro() -> None:
     payload = collaborator_form("new")
     usuario = pin_form("cadastrar_colaborador", "new")
     if st.button("Cadastrar colaborador", type="primary"):
@@ -696,9 +742,78 @@ def page_novo_cadastro() -> None:
         audit("cadastrar_colaborador", result["id"], usuario, None, result)
         _, pendings = status_documental(result, fetch_table("documentos_colaborador", "created_at", True))
         novo_colaborador_email(result, usuario, pendings)
-        st.success("Colaborador cadastrado e e-mail aos sócios processado.")
+        st.success("Colaborador cadastrado e e-mail aos sócios processado automaticamente.")
         st.rerun()
 
+
+def page_colaboradores() -> None:
+    st.title(PAGE_COLABORADORES)
+    colaboradores = get_colaboradores()
+    ativos = [c for c in colaboradores if c.get("status") == "ativo"]
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Ativos", len(ativos))
+    m2.metric("CLT", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT"))
+    m3.metric("Estagiários", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == TIPO_ESTAGIARIO))
+    m4.metric("PJ", sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "PJ"))
+
+    tab_consulta, tab_novo, tab_editar = st.tabs(["Ativos e consulta", "Novo cadastro", "Editar dados"])
+
+    with tab_consulta:
+        if not colaboradores:
+            st.info("Nenhum colaborador cadastrado.")
+        else:
+            f1, f2, f3 = st.columns([2, 1, 1])
+            busca = f1.text_input("Buscar por nome, cargo, e-mail ou CPF", key="colab_busca")
+            status_filtro = f2.selectbox("Status", ["todos", "ativo", "inativo", "rescindido"], key="colab_status")
+            tipo_filtro = f3.selectbox("Tipo", ["todos"] + TIPOS_VINCULO, key="colab_tipo")
+            filtrados = []
+            busca_lower = busca.strip().lower()
+            for c in colaboradores:
+                tipo = normalize_tipo_vinculo(c.get("tipo_vinculo"))
+                haystack = " ".join(str(c.get(k, "")) for k in ["nome_completo", "cargo", "email", "cpf", "telefone"]).lower()
+                if busca_lower and busca_lower not in haystack:
+                    continue
+                if status_filtro != "todos" and c.get("status") != status_filtro:
+                    continue
+                if tipo_filtro != "todos" and tipo != tipo_filtro:
+                    continue
+                filtrados.append(c)
+            st.dataframe(colaboradores_dataframe(filtrados), use_container_width=True, hide_index=True)
+
+    with tab_novo:
+        render_novo_cadastro()
+
+    with tab_editar:
+        if not colaboradores:
+            st.info("Cadastre o primeiro colaborador na aba Novo cadastro.")
+            return
+        selected = select_colaborador("Selecione", colaboradores)
+        if not selected:
+            return
+        payload = collaborator_form("edit", selected)
+        usuario = pin_form("alterar_dados_pessoais", "edit")
+        if st.button("Salvar alterações", type="primary"):
+            errors = validate_colaborador(payload)
+            if errors:
+                for err in errors:
+                    st.error(err)
+                return
+            if not usuario:
+                st.error("Informe um PIN valido.")
+                return
+            payload.pop("_bank_confirmed", None)
+            payload["updated_at"] = now_iso()
+            sb().table("colaboradores").update(payload).eq("id", selected["id"]).execute()
+            audit("alterar_dados_pessoais", selected["id"], usuario, selected, payload)
+            st.success("Colaborador atualizado.")
+            st.rerun()
+
+
+
+def page_novo_cadastro() -> None:
+    st.title("Novo cadastro")
+    render_novo_cadastro()
 
 def create_default_docs(colaborador: dict[str, Any]) -> None:
     docs = DOCUMENTOS_ESTAGIARIO if colaborador.get("tipo_vinculo") == TIPO_ESTAGIARIO else DOCUMENTOS_CLT
@@ -900,8 +1015,8 @@ def page_vagas() -> None:
     vagas = fetch_table("vagas", "tipo_vinculo", False)
     colaboradores = get_colaboradores()
     ativos = [c for c in colaboradores if c.get("status") == "ativo"]
-    for tipo in ["CLT", TIPO_ESTAGIARIO, "PJ", "8 horas"]:
-        occupied = sum(1 for c in ativos if c.get("tipo_vinculo") == tipo)
+    for tipo in ["CLT", TIPO_ESTAGIARIO, "PJ"]:
+        occupied = sum(1 for c in ativos if normalize_tipo_vinculo(c.get("tipo_vinculo")) == tipo)
         existing = next((v for v in vagas if v.get("tipo_vinculo") == tipo), {})
         total = st.number_input(f"Vagas totais - {tipo}", min_value=0, value=int(existing.get("quantidade_total") or occupied), key=f"vaga_{tipo}")
         available = total - occupied
@@ -927,8 +1042,8 @@ def page_aniversarios() -> None:
         rows.append(
             {
                 "nome": c["nome_completo"],
-                "tipo": c.get("tipo_vinculo"),
-                "cargo": c.get("cargo"),
+                "tipo": colaborador_tipo_label(c),
+                    "cargo": c.get("cargo"),
                 "data_nascimento": br_date(birth),
                 "idade": age(birth),
                 "tempo_empresa": company_time(c.get("data_admissao")),
@@ -937,9 +1052,7 @@ def page_aniversarios() -> None:
             }
         )
     st.dataframe(pd.DataFrame(rows).sort_values(["mês", "dia"]), use_container_width=True, hide_index=True)
-    if st.button("Enviar alertas de aniversário de hoje/amanhã"):
-        send_birthday_alerts()
-        st.success("Rotina de aniversários processada.")
+    st.info("Os alertas de aniversário são enviados pela rotina automática diária, quando scripts/run_daily_jobs.py estiver agendado.")
 
 
 def send_birthday_alerts() -> None:
@@ -1016,24 +1129,23 @@ def page_relatorios() -> None:
     st.dataframe(df, use_container_width=True, hide_index=True)
     st.download_button("Exportar Excel", dataframe_to_excel(df), file_name=f"{tipo}.xlsx")
     st.download_button("Exportar PDF", dataframe_to_pdf(df), file_name=f"{tipo}.pdf")
-    if tipo == "Quadro semanal" and st.button("Enviar quadro semanal por e-mail"):
-        send_weekly_report(df)
-        st.success("Quadro semanal processado.")
+    if tipo == "Quadro semanal":
+        st.info("O quadro semanal é enviado automaticamente pela rotina diária agendada, sem clique manual.")
 
 
 def build_report(tipo: str) -> pd.DataFrame:
     colaboradores = get_colaboradores()
     docs = fetch_table("documentos_colaborador", "created_at", True)
     if tipo == "Colaboradores ativos":
-        return pd.DataFrame([c for c in colaboradores if c.get("status") == "ativo"])
+        return colaboradores_dataframe([c for c in colaboradores if c.get("status") == "ativo"])
     if tipo == "Colaboradores inativos/rescindidos":
-        return pd.DataFrame([c for c in colaboradores if c.get("status") != "ativo"])
+        return colaboradores_dataframe([c for c in colaboradores if c.get("status") != "ativo"])
     if tipo == "Documentação pendente":
         rows = []
         for c in colaboradores:
             _, pend = status_documental(c, docs)
             if pend:
-                rows.append({"nome": c["nome_completo"], "tipo": c.get("tipo_vinculo"), "pendências": "; ".join(pend)})
+                rows.append({"nome": c["nome_completo"], "tipo": colaborador_tipo_label(c), "pendências": "; ".join(pend)})
         return pd.DataFrame(rows)
     if tipo == "Rescisões":
         return pd.DataFrame(fetch_table("rescisoes", "created_at", True))
@@ -1044,7 +1156,7 @@ def build_report(tipo: str) -> pd.DataFrame:
                     "nome": c["nome_completo"],
                     "data_nascimento": br_date(c.get("data_nascimento")),
                     "idade": age(c.get("data_nascimento")),
-                    "tipo": c.get("tipo_vinculo"),
+                    "tipo": colaborador_tipo_label(c),
                     "cargo": c.get("cargo"),
                 }
                 for c in colaboradores
@@ -1061,7 +1173,8 @@ def build_report(tipo: str) -> pd.DataFrame:
         rows.append(
             {
                 "Nome": c.get("nome_completo"),
-                "Tipo de vínculo": c.get("tipo_vinculo"),
+                "Tipo de vínculo": colaborador_tipo_label(c),
+                "Carga horária": carga_horaria_from_colaborador(c) if normalize_tipo_vinculo(c.get("tipo_vinculo")) == "CLT" else "",
                 "Cargo": c.get("cargo"),
                 "Data de admissão": br_date(c.get("data_admissao")),
                 "Tempo de empresa": company_time(c.get("data_admissao")),
@@ -1084,12 +1197,12 @@ Segue o quadro atualizado de colaboradores da Assis & Mollerke.
 
 Resumo:
 Total de colaboradores ativos: {len(ativos)}
-Total CLT: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'CLT')}
-Total estagi\u00e1rios: {sum(1 for c in ativos if c.get('tipo_vinculo') == TIPO_ESTAGIARIO)}
-Total PJ: {sum(1 for c in ativos if c.get('tipo_vinculo') == 'PJ')}
-Total 8 horas: {sum(1 for c in ativos if c.get('tipo_vinculo') == '8 horas')}
+Total CLT: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'CLT')}
+Total CLT 6h: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'CLT' and carga_horaria_from_colaborador(c) == '6 horas')}
+Total CLT 8h: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'CLT' and carga_horaria_from_colaborador(c) == '8 horas')}
+Total estagi\u00e1rios: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == TIPO_ESTAGIARIO)}
+Total PJ: {sum(1 for c in ativos if normalize_tipo_vinculo(c.get('tipo_vinculo')) == 'PJ')}
 Total inativos/rescindidos: {sum(1 for c in colaboradores if c.get('status') != 'ativo')}
-
 Tabela:
 {df.to_string(index=False)}
 
@@ -1101,6 +1214,17 @@ Este relatório é enviado automaticamente pelo sistema de controle de funcioná
 
 def page_configuracoes() -> None:
     st.title(PAGE_CONFIGURACOES)
+
+    st.subheader("Automação de e-mails")
+    smtp_ok = bool(st.secrets.get("SMTP_USER", "") and st.secrets.get("SMTP_PASS", "") and st.secrets.get("SMTP_FROM", st.secrets.get("SMTP_USER", "")))
+    if smtp_ok:
+        st.markdown('<div class="email-ok">SMTP configurado: os e-mails conseguem sair pelo app quando uma rotina é executada.</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="email-warn">SMTP incompleto: o sistema registra o e-mail como pendente, mas não consegue enviar até configurar SMTP_USER, SMTP_PASS e SMTP_FROM.</div>', unsafe_allow_html=True)
+    st.write("Cadastro novo: e-mail automático aos sócios assim que o colaborador é salvo.")
+    st.write("Rescisões: alertas automáticos são checados quando o app é aberto e também pela rotina diária.")
+    st.write("Aniversários, pendências documentais e quadro semanal: automáticos somente quando `scripts/run_daily_jobs.py` estiver agendado em GitHub Actions, servidor ou cron.")
+
     st.subheader("Usuários internos e PIN")
     st.info("Por segurança, cadastre apenas o hash do PIN. Gere o hash abaixo e salve na tabela usuarios.")
     pin = st.text_input("PIN para gerar hash", type="password")
@@ -1158,36 +1282,42 @@ def main() -> None:
         [
             PAGE_DASHBOARD,
             PAGE_COLABORADORES,
-            PAGE_NOVO_CADASTRO,
             PAGE_DOCUMENTACAO,
             PAGE_RESCISOES,
-            PAGE_VAGAS,
-            PAGE_ANIVERSARIOS,
             PAGE_RELATORIOS,
             PAGE_CONFIGURACOES,
-            PAGE_AUDITORIA,
         ],
     )
     update_deadlines_and_alerts()
     pages = {
         PAGE_DASHBOARD: dashboard,
         PAGE_COLABORADORES: page_colaboradores,
-        PAGE_NOVO_CADASTRO: page_novo_cadastro,
         PAGE_DOCUMENTACAO: page_documentacao,
         PAGE_RESCISOES: page_rescisoes,
-        PAGE_VAGAS: page_vagas,
-        PAGE_ANIVERSARIOS: page_aniversarios,
         PAGE_RELATORIOS: page_relatorios,
         PAGE_CONFIGURACOES: page_configuracoes,
-        PAGE_AUDITORIA: page_auditoria,
     }
     institutional_header(page)
     pages[page]()
     institutional_footer()
 
-
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
