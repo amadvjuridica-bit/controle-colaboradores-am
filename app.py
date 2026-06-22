@@ -129,7 +129,7 @@ def css() -> None:
         .am-page-kicker { color: var(--am-gold); font-size: .72rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; margin-bottom: .38rem; }
         .am-page-title { color: var(--am-navy); font-size: 1.72rem; line-height: 1.15; font-weight: 800; }
         .am-page-copy { color: var(--am-muted); font-size: .92rem; max-width: 620px; margin-top: .35rem; }
-        .am-page-badge { border: 1px solid #e4d7bd; color: #70572e; background: #fffaf1; border-radius: 999px; padding: .42rem .7rem; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+        .am-page-badge { border: 1px solid #e4d7bd; color: #70572e; background: #fffaf1; border-radius: 999px; padding: .42rem .7rem; font-size: .78rem; font-weight: 700; white-space: nowrap; }\n        .am-logo-fallback { color: var(--am-navy); font-size: 2.25rem; font-weight: 800; letter-spacing: -.01em; border-bottom: 3px solid var(--am-gold); display: inline-block; padding-bottom: .2rem; margin-top: .35rem; }
         .am-footer { margin-top: 28px; padding: 14px 0 0; border-top: 1px solid var(--am-line); color: var(--am-muted); font-size: .82rem; }
         .notice { border: 1px solid #eadfc9; background: #fffaf1; color: #614819; padding: 12px 14px; border-radius: 8px; font-weight: 650; }
         div[data-testid="stTabs"] { margin-top: .35rem; }
@@ -409,16 +409,18 @@ def require_login() -> None:
     if st.session_state.logged:
         return
 
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([0.85, 2.15])
     with col1:
         try:
             st.image(LOGO_PATH, use_container_width=True)
         except Exception:
-            st.title("A&M")
+            st.markdown('<div class="am-logo-fallback">A&M</div>', unsafe_allow_html=True)
     with col2:
-        st.title("Controle de Colaboradores")
-        st.caption("Assis & Mollerke")
-        st.info(CONFIDENTIAL_NOTICE)
+        page_header(
+            "Controle de Colaboradores",
+            "Acesso restrito para acompanhamento interno da equipe, documentos e desligamentos.",
+            "Login",
+        )
         password = st.text_input("Senha principal do app", type="password")
         expected = st.secrets.get("APP_PASSWORD", "")
         if st.button("Entrar", type="primary"):
@@ -429,7 +431,6 @@ def require_login() -> None:
                 st.error("Senha inválida ou APP_PASSWORD não configurado.")
     institutional_footer()
     st.stop()
-
 
 def pin_form(action: str, key: str) -> dict[str, Any] | None:
     usuarios = get_usuarios()
@@ -1323,6 +1324,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 
